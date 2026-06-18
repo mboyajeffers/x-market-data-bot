@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+
+# credentials — never commit
+.env
+*.env
+*_env
+
+# downloaded utilities
+avatar.jpg
+
+# runtime logs
+bot/error.log
+bot/post_log.json
