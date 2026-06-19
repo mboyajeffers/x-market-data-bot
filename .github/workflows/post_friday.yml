@@ -1,0 +1,38 @@
+name: Post Friday — Rotating Vertical
+
+on:
+  schedule:
+    - cron: '0 16 * * 5'  # 12:00PM ET (UTC-4 EDT)
+  workflow_dispatch:
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install tweepy yfinance matplotlib
+
+      - name: Determine rotation vertical
+        id: rotation
+        run: |
+          python3 -c "
+          import datetime
+          verticals = ['oilgas','betting','solar','gaming','media','ecommerce','weather']
+          week = datetime.date.today().isocalendar()[1]
+          vertical = verticals[week % 7]
+          print(f'vertical={vertical}')
+          " >> $GITHUB_OUTPUT
+
+      - name: Generate card and post
+        env:
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+        run: python bot/post.py ${{ steps.rotation.outputs.vertical }}
