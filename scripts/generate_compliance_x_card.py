@@ -23,7 +23,7 @@ from matplotlib.patches import FancyBboxPatch
 
 # ─── PATHS ────────────────────────────────────────────────────────────────────
 
-OUT_DIR = Path("/Users/mboyajeffers/Claude_Projects/REVENUE/X/cards")
+OUT_DIR = Path(__file__).parent.parent / "cards"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 TODAY = datetime.now().strftime("%Y-%m-%d")
 TIMESTAMP = datetime.now().strftime("%Y-%m-%d %H:%M UTC")
