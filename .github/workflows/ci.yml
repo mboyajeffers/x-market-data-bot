@@ -16,7 +16,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: pip install -r requirements.txt ruff
+        run: pip install -r requirements.txt ruff==0.15.0
       - name: Lint
         run: ruff check scripts/ bot/
       - name: Compile check (syntax + import structure)
