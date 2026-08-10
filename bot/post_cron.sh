@@ -8,7 +8,7 @@
 source "$HOME/.x_bot_env"
 
 PYTHON=/opt/homebrew/bin/python3
-BOT="$HOME/Claude_Projects/REVENUE/X/bot/post.py"
+BOT="$HOME/x-market-data-bot/bot/post.py"
 LOG_DIR=/tmp
 
 VERTICAL="${1:-finance}"

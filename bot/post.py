@@ -24,8 +24,8 @@ Install deps (once):
     pip install tweepy yfinance
 
 Cron — Mac (local Eastern time, DST-aware):
-    0 9 * * 1   /usr/bin/python3 ~/Claude_Projects/REVENUE/X/bot/post.py finance  >> /tmp/x_post_mon.log 2>&1
-    0 9 * * 4   /usr/bin/python3 ~/Claude_Projects/REVENUE/X/bot/post.py crypto   >> /tmp/x_post_thu.log 2>&1
+    0 9 * * 1   /usr/bin/python3 ~/x-market-data-bot/bot/post.py finance  >> /tmp/x_post_mon.log 2>&1
+    0 9 * * 4   /usr/bin/python3 ~/x-market-data-bot/bot/post.py crypto   >> /tmp/x_post_thu.log 2>&1
 
 Cron — VM (UTC, adjust for DST manually):
     0 13 * * 1  cd /opt/x_bot && source venv/bin/activate && python post.py finance  >> /tmp/x_post.log 2>&1

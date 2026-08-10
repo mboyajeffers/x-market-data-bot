@@ -6,7 +6,7 @@
 source "$HOME/.x_bot_env"
 
 PYTHON=/opt/homebrew/bin/python3
-BOT="$HOME/Claude_Projects/REVENUE/X/bot/post.py"
+BOT="$HOME/x-market-data-bot/bot/post.py"
 LOG_DIR=/tmp
 
 VERTICALS=(oilgas betting solar gaming media ecommerce weather)
