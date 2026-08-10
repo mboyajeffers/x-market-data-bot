@@ -1,7 +1,7 @@
 # X Market Data Bot — @Mboya_Jeffers
 
 Automated daily market data cards posted to [@Mboya_Jeffers](https://x.com/Mboya_Jeffers).
-11 verticals. Live API data. Monday–Friday 9AM ET.
+Multiple verticals. Live API data. Monday–Friday 9AM ET.
 
 > **Not investment advice. Data only.**
 

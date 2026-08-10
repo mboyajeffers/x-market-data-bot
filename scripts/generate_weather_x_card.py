@@ -78,7 +78,7 @@ def fetch_city(name, lat, lon, tz, retries=3):
     )
     for i in range(retries):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "CleanMetrics/1.0"})
+            req = urllib.request.Request(url, headers={"User-Agent": "mboya-x-market-data-bot/1.0"})
             with urllib.request.urlopen(req, timeout=15) as r:
                 data = json.loads(r.read())
             cur = data.get("current", {})

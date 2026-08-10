@@ -49,7 +49,7 @@ EDGAR_FULL = "https://efts.sec.gov/LATEST/search-index?q=%22administrative+proce
 EDGAR_SEARCH = "https://efts.sec.gov/LATEST/search-index?q={query}&forms={forms}&dateRange=custom&startdt={start}&enddt={end}"
 
 HEADERS = {
-    "User-Agent": "CleanMetrics data-pipeline contact@cleanmetrics.io",
+    "User-Agent": "mboya-x-market-data-bot/1.0 (github.com/mboyajeffers/x-market-data-bot)",
     "Accept": "application/json",
 }
 

@@ -102,7 +102,7 @@ Four ready-to-use thread structures. Customize the bracketed values each time.
 >
 > → Automated pipeline (cron, daily)
 > → Live API data (yfinance, FRED, CoinGecko, EIA)
-> → Pre-computed KPIs (188+ metrics)
+> → Pre-computed KPIs (hundreds of metrics)
 > → PDF reports on demand
 >
 > Same data. No humans in the loop.

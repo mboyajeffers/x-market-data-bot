@@ -44,7 +44,7 @@
 | Day | Date | Type | Card | Caption | Hashtags | CTA |
 |-----|------|------|------|---------|----------|-----|
 | Mon | Jul 14 | Finance card | finance_x_card | "Earnings season: how the data looked before the reports dropped." | #Earnings #Analytics | Follow |
-| Thu | Jul 17 | Text-only | — | "How I track 11 industry verticals in one pipeline: betting, brokerage, crypto, energy, media, solar, compliance, gaming, ecommerce, finance, oil & gas. 188+ KPIs. One engine." | #DataEngineering | GitHub |
+| Thu | Jul 17 | Text-only | — | "How I track a dozen market verticals in one pipeline: betting, brokerage, crypto, energy, media, solar, compliance, gaming, ecommerce, finance, oil & gas. Hundreds of KPIs. One engine." | #DataEngineering | GitHub |
 
 ---
 

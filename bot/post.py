@@ -28,8 +28,8 @@ Cron — Mac (local Eastern time, DST-aware):
     0 9 * * 4   /usr/bin/python3 ~/Claude_Projects/REVENUE/X/bot/post.py crypto   >> /tmp/x_post_thu.log 2>&1
 
 Cron — VM (UTC, adjust for DST manually):
-    0 13 * * 1  cd /opt/cleanmetrics && source venv/bin/activate && python /opt/x_bot/post.py finance  >> /tmp/x_post.log 2>&1
-    0 13 * * 4  cd /opt/cleanmetrics && source venv/bin/activate && python /opt/x_bot/post.py crypto   >> /tmp/x_post.log 2>&1
+    0 13 * * 1  cd /opt/x_bot && source venv/bin/activate && python post.py finance  >> /tmp/x_post.log 2>&1
+    0 13 * * 4  cd /opt/x_bot && source venv/bin/activate && python post.py crypto   >> /tmp/x_post.log 2>&1
     # Change 13 → 14 in winter (EST = UTC-5)
 """
 
@@ -185,7 +185,7 @@ def _edgar_count(query, form, days=30):
     )
     try:
         req = urllib.request.Request(url, headers={
-            "User-Agent": "CleanMetrics data-pipeline contact@cleanmetrics.io",
+            "User-Agent": "mboya-x-market-data-bot/1.0 (github.com/mboyajeffers/x-market-data-bot)",
             "Accept": "application/json",
         })
         with urllib.request.urlopen(req, timeout=15) as r:
@@ -200,7 +200,7 @@ def _fred_latest(series_id):
     import csv, io
     url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "CleanMetrics/1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "mboya-x-market-data-bot/1.0"})
         with urllib.request.urlopen(req, timeout=15) as r:
             text = r.read().decode("utf-8")
         rows = []
@@ -485,7 +485,7 @@ def build_caption_weather():
                f"&current=temperature_2m,weather_code"
                f"&temperature_unit=fahrenheit&timezone={tz}&forecast_days=1")
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "CleanMetrics/1.0"})
+            req = urllib.request.Request(url, headers={"User-Agent": "mboya-x-market-data-bot/1.0"})
             with urllib.request.urlopen(req, timeout=10) as r:
                 d = _json.loads(r.read())
             conditions.append((name, d["current"]["temperature_2m"]))

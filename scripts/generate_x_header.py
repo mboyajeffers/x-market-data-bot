@@ -16,7 +16,7 @@ import numpy as np
 
 # ─── PATHS ────────────────────────────────────────────────────────────────────
 
-OUT_DIR = Path("/Users/mboyajeffers/Claude_Projects/REVENUE/X/cards")
+OUT_DIR = Path(__file__).resolve().parent.parent / "cards"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 OUT_PATH = OUT_DIR / "x_header.png"
 
