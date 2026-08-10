@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 US Weather Snapshot — X card generator
-Output: REVENUE/X/cards/weather_x_card_YYYY-MM-DD.png (1200x675px)
+Output: cards/weather_x_card_YYYY-MM-DD.png (1200x675px)
 Theme: #060f1a background | #0ea5e9 sky blue
 Data: Open-Meteo API (free, no key) — current conditions + 7-day forecast
 """
@@ -172,7 +172,7 @@ def draw_card(city_data):
     fig.text(0.02, 0.93, f"US Weather Snapshot — {TODAY}",
              fontsize=14, fontweight="bold", color=WHITE, va="top")
     fig.text(0.02, 0.88, headline, fontsize=9, color=CYAN, va="top")
-    fig.text(0.98, 0.92, f"8 major US cities  |  Open-Meteo",
+    fig.text(0.98, 0.92, "8 major US cities  |  Open-Meteo",
              fontsize=9, color=DIM, va="top", ha="right")
     fig.text(0.98, 0.86, "@Mboya_Jeffers",
              fontsize=8.5, color=SKY, va="top", ha="right", fontweight="bold")

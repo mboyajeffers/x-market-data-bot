@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Sports Betting Sector Snapshot — X card generator
-Output: REVENUE/X/cards/betting_x_card_YYYY-MM-DD.png (1200x675px)
+Output: cards/betting_x_card_YYYY-MM-DD.png (1200x675px)
 Theme: #071a0e background | #16a34a green
 Data: yfinance (sportsbook operators + BETZ ETF + SPY/VIX)
 """

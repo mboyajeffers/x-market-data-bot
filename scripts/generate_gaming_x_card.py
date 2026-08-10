@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Video Gaming Sector Snapshot — X card generator
-Output: REVENUE/X/cards/gaming_x_card_YYYY-MM-DD.png (1200x675px)
+Output: cards/gaming_x_card_YYYY-MM-DD.png (1200x675px)
 Theme: #0f0826 background | #db2777 pink
 Data: yfinance (gaming stocks + ESPO ETF + SPY/VIX)
 """

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 E-Commerce Sector Snapshot — X card generator
-Output: REVENUE/X/cards/ecommerce_x_card_YYYY-MM-DD.png (1200x675px)
+Output: cards/ecommerce_x_card_YYYY-MM-DD.png (1200x675px)
 Theme: #120c00 background | #d97706 amber
 Data: yfinance (ecommerce stocks) + FRED (consumer sentiment UMCSENT)
 """
@@ -17,7 +17,6 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from matplotlib.patches import FancyBboxPatch
 import yfinance as yf
 
 # ─── PATHS ────────────────────────────────────────────────────────────────────

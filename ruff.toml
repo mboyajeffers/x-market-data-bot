@@ -1,0 +1,4 @@
+# E701/E702: allow compact single-line `if x: return y` in small mapping/dispatch
+# helpers (fmt_pct, pct_color, trend_arrow, risk_class) -- a deliberate style
+# choice for readability in short lookup functions, not an oversight.
+lint.ignore = ["E701", "E702"]

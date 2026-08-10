@@ -197,7 +197,8 @@ def _edgar_count(query, form, days=30):
 
 def _fred_latest(series_id):
     """Return most recent non-null value from a FRED series (Federal Reserve)."""
-    import csv, io
+    import csv
+    import io
     url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "mboya-x-market-data-bot/1.0"})

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Solar & Clean Energy Sector Snapshot — X card generator
-Output: REVENUE/X/cards/solar_x_card_YYYY-MM-DD.png (1200x675px)
+Output: cards/solar_x_card_YYYY-MM-DD.png (1200x675px)
 Theme: #120f00 background | #ca8a04 gold
 Data: yfinance (solar stocks + TAN ETF + SPY/VIX) + FRED (WTI crude context)
 """

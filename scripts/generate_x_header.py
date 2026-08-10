@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """
 X Profile Header Image Generator
-Output: REVENUE/X/cards/x_header.png (1500x500px)
+Output: cards/x_header.png (1500x500px)
 Theme: Dark gradient | purple + teal | no company names
 """
 
-from datetime import datetime
 from pathlib import Path
 
 import matplotlib

@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
 Brokerage Market Snapshot — X card generator
-Output: REVENUE/X/cards/brokerage_x_card_YYYY-MM-DD.png (1200x675px)
+Output: cards/brokerage_x_card_YYYY-MM-DD.png (1200x675px)
 Theme: #080f1e background | #1e3a5f navy | white text
 Data: Yahoo Finance (broker stocks + options volume + market breadth)
 """
 
-import sys
 import time
 from datetime import datetime
 from pathlib import Path

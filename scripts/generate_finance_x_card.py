@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Market Snapshot — X card generator (Finance / Equity)
-Output: REVENUE/X/cards/finance_x_card_YYYY-MM-DD.png (1200x675px)
+Output: cards/finance_x_card_YYYY-MM-DD.png (1200x675px)
 Theme: #0a1628 background | #2d9596 teal | white text
 Data: yfinance (sector ETFs + SPY + VIX) + FRED (Fed Funds, CPI, 10Y)
 """
