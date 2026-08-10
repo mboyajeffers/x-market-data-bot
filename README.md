@@ -1,5 +1,8 @@
 # X Market Data Bot — @Mboya_Jeffers
 
+![CI](https://github.com/mboyajeffers/x-market-data-bot/actions/workflows/ci.yml/badge.svg)
+![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)
+
 Automated daily market data cards posted to [@Mboya_Jeffers](https://x.com/Mboya_Jeffers).
 Multiple verticals. Live API data. Monday–Friday 9AM ET.
 
