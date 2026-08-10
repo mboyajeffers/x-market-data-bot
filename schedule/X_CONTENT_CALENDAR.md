@@ -17,7 +17,7 @@
 | Day | Date | Type | Card | Caption | Hashtags | CTA |
 |-----|------|------|------|---------|----------|-----|
 | Mon | Jun 22 | Finance card | finance_x_card | "Q3 starts: macro snapshot. 10Y yield at [X]%, VIX at [X]. Which sectors are moving?" | #Macro #Investing #Finance | Follow for automated weekly data |
-| Thu | Jun 26 | Crypto card | crypto_x_card | "Mid-week crypto check: market cap [X]. ETH/BTC relative strength. Automated via CoinGecko API." | #ETH #CryptoData #Analytics | Link in bio: Contra profile |
+| Thu | Jun 26 | Crypto card | crypto_x_card | "Mid-week crypto check: market cap [X]. ETH/BTC relative strength. Automated via CoinGecko API." | #ETH #CryptoData #Analytics | Link in bio: GitHub |
 
 ---
 
@@ -35,7 +35,7 @@
 | Day | Date | Type | Card | Caption | Hashtags | CTA |
 |-----|------|------|------|---------|----------|-----|
 | Mon | Jul 7 | Finance card | finance_x_card | "July open: how are sectors positioned heading into earnings season?" | #EarningsSeason #Finance | Follow |
-| Thu | Jul 10 | Crypto card | crypto_x_card | "Crypto mid-week: volatility index at [X]. BTC dominance [X]%. Automated risk snapshot." | #CryptoRisk #BitcoinData | Contra profile |
+| Thu | Jul 10 | Crypto card | crypto_x_card | "Crypto mid-week: volatility index at [X]. BTC dominance [X]%. Automated risk snapshot." | #CryptoRisk #BitcoinData | GitHub profile |
 
 ---
 
@@ -53,7 +53,7 @@
 | Day | Date | Type | Card | Caption | Hashtags | CTA |
 |-----|------|------|------|---------|----------|-----|
 | Mon | Jul 21 | Finance card | finance_x_card | "Post-earnings market data: winners and laggards by sector." | #Earnings #MarketData | Follow |
-| Thu | Jul 24 | Crypto card | crypto_x_card | "Crypto weekly: 30-day volatility vs current. Are we in a risk-on or risk-off period?" | #CryptoAnalytics | Contra profile |
+| Thu | Jul 24 | Crypto card | crypto_x_card | "Crypto weekly: 30-day volatility vs current. Are we in a risk-on or risk-off period?" | #CryptoAnalytics | GitHub profile |
 
 ---
 
