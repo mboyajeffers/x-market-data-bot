@@ -112,4 +112,4 @@ X_ACCESS_TOKEN_SECRET=
 
 ---
 
-*Part of the [data-intelligence-platform](https://github.com/mboyajeffers/data-intelligence-platform) — automated analytics across 11 industry verticals.*
+*Part of the broader [Data-Engineering-Portfolio](https://github.com/mboyajeffers/Data-Engineering-Portfolio) — automated analytics across 10 industries.*
