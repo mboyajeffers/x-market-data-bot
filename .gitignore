@@ -15,3 +15,24 @@ avatar.jpg
 bot/error.log
 bot/post_log.json
 bot/staging.json
+
+# ===========================================
+# SECURITY - Secrets and Credentials
+# ===========================================
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+*_secrets*
+*_credentials*
+credentials.json
+service-account*.json
+secrets.yaml
+secrets.yml
+
+# Internal working docs - not meant to be public
+boot/
+_archive/
+internal/

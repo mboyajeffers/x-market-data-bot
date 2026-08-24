@@ -1,7 +1,10 @@
 # X Market Data Bot — @Mboya_Jeffers
 
+![CI](https://github.com/mboyajeffers/x-market-data-bot/actions/workflows/ci.yml/badge.svg)
+![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)
+
 Automated daily market data cards posted to [@Mboya_Jeffers](https://x.com/Mboya_Jeffers).
-11 verticals. Live API data. Monday–Friday 9AM ET.
+Multiple verticals. Live API data. Monday–Friday 9AM ET.
 
 > **Not investment advice. Data only.**
 
@@ -109,4 +112,4 @@ X_ACCESS_TOKEN_SECRET=
 
 ---
 
-*Part of the [data-intelligence-platform](https://github.com/mboyajeffers/data-intelligence-platform) — automated analytics across 11 industry verticals.*
+*Part of the broader [Data-Engineering-Portfolio](https://github.com/mboyajeffers/Data-Engineering-Portfolio) — automated analytics across 10 industries.*

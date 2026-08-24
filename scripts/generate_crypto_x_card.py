@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Crypto Market Snapshot — X card generator
-Output: REVENUE/X/cards/crypto_x_card_YYYY-MM-DD.png (1200x675px)
+Output: cards/crypto_x_card_YYYY-MM-DD.png (1200x675px)
 Theme: #0d1117 background | #a855f7 purple | white text
 Data: CoinGecko public API (no key required) + Alternative.me Fear & Greed + OKX Futures
 """

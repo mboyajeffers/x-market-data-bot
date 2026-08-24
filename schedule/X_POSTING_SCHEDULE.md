@@ -60,7 +60,7 @@ Before each Mon/Thu post:
 
 ```bash
 # Run before every post
-cd /Users/mboyajeffers/Claude_Projects/REVENUE/X/scripts
+cd x-market-data-bot/scripts
 
 # Monday
 python3 generate_finance_x_card.py

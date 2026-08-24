@@ -4,7 +4,7 @@ Sports Betting Sector — X Card Generator
 Renderer: HTML/CSS + SVG → Chrome Headless → PNG
 
 Layout: 3 columns — bar chart | SVG sparkline | sector stats
-Output: REVENUE/X/cards/betting_x_card_YYYY-MM-DD.png (1200×675)
+Output: cards/betting_x_card_YYYY-MM-DD.png (1200×675)
 """
 
 import sys

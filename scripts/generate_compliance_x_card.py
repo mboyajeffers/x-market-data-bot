@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 """
 SEC Compliance Tracker — X card generator
-Output: REVENUE/X/cards/compliance_x_card_YYYY-MM-DD.png (1200x675px)
+Output: cards/compliance_x_card_YYYY-MM-DD.png (1200x675px)
 Theme: #08082a background | #4f46e5 indigo | white text
 Data: SEC EDGAR full-text search API (free, no key) + EDGAR company search
 """
 
 import json
-import sys
 import time
 import urllib.request
 import urllib.error
-from collections import defaultdict
+import urllib.parse
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -61,7 +60,7 @@ EDGAR_FULL = "https://efts.sec.gov/LATEST/search-index?q=%22administrative+proce
 EDGAR_SEARCH = "https://efts.sec.gov/LATEST/search-index?q={query}&forms={forms}&dateRange=custom&startdt={start}&enddt={end}"
 
 HEADERS = {
-    "User-Agent": "MarketDataBot data-pipeline",
+    "User-Agent": "mboya-x-market-data-bot/1.0 (github.com/mboyajeffers/x-market-data-bot)",
     "Accept": "application/json",
 }
 
@@ -106,15 +105,11 @@ def edgar_company_search(form_type, start_date, end_date, max_retries=3):
         try:
             with urllib.request.urlopen(req, timeout=20) as resp:
                 return json.loads(resp.read().decode())
-        except Exception as e:
+        except Exception:
             if attempt < max_retries - 1:
                 time.sleep(5)
                 continue
             return None
-
-
-# Add missing import
-import urllib.parse
 
 
 def fetch_enforcement_data():

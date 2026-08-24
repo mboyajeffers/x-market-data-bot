@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 US Oil & Gas Snapshot — X card generator
-Output: REVENUE/X/cards/oilgas_x_card_YYYY-MM-DD.png (1200x675px)
+Output: cards/oilgas_x_card_YYYY-MM-DD.png (1200x675px)
 Theme: #150800 background | #c2410c orange-red | white text
 Data: FRED (WTI spot + Henry Hub NG) + yfinance (CL=F, NG=F, XLE, XOP, majors)
 Note: EIA API v2 requires key — using FRED energy series (no key required).
@@ -149,7 +149,7 @@ def fetch_fred_history(series_id, start="2025-01-01", max_retries=3):
             rows = [(r[0], float(r[1])) for r in reader
                     if len(r) >= 2 and r[1] and r[1] not in (".", "")]
             return rows
-        except Exception as e:
+        except Exception:
             if attempt < max_retries - 1:
                 time.sleep(4)
                 continue

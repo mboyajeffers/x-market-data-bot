@@ -102,7 +102,7 @@ Four ready-to-use thread structures. Customize the bracketed values each time.
 >
 > → Automated pipeline (cron, daily)
 > → Live API data (yfinance, FRED, CoinGecko, EIA)
-> → Pre-computed KPIs (188+ metrics)
+> → Pre-computed KPIs (hundreds of metrics)
 > → PDF reports on demand
 >
 > Same data. No humans in the loop.
@@ -162,5 +162,5 @@ Four ready-to-use thread structures. Customize the bracketed values each time.
 >
 > If your team needs this for [their industry], I offer white glove analytics builds.
 >
-> DM me or find my services at [Contra profile link when live].
+> DM me or find my work at github.com/mboyajeffers.
 > Follow for more breakdowns.

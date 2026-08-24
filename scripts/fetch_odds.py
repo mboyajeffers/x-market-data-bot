@@ -204,7 +204,7 @@ def fetch_wc_odds(api_key: str | None = None) -> list[dict]:
         f"&oddsFormat=american&dateFormat=iso"
     )
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "MarketDataBot/1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "mboya-x-market-data-bot/1.0"})
         with urllib.request.urlopen(req, timeout=12) as r:
             events = json.loads(r.read().decode())
     except Exception:

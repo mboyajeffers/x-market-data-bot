@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 US Weather Snapshot — X card generator
-Output: REVENUE/X/cards/weather_x_card_YYYY-MM-DD.png (1200x675px)
+Output: cards/weather_x_card_YYYY-MM-DD.png (1200x675px)
 Theme: #060f1a background | #0ea5e9 sky blue
 Data: Open-Meteo API (free, no key) — current conditions + 7-day forecast
 """
@@ -21,7 +21,7 @@ import matplotlib.ticker as mticker
 
 from card_spec import (
     FONT_TITLE, FONT_HEADLINE, FONT_STAT, FONT_HANDLE,
-    FONT_LABEL, FONT_VALUE, FONT_SMALL, FONT_TINY,
+    FONT_LABEL, FONT_VALUE, FONT_SMALL, FONT_TINY, FONT_MICRO,
     GS_TOP, GS_BOTTOM, GS_LEFT, GS_RIGHT, GS_WSPACE,
     HDR_TITLE_Y, HDR_HEADLINE_Y, HDR_STAT_Y, HDR_HANDLE_Y,
     FOOTER_Y, FOOTER_LINE_Y, MARGIN_LEFT, MARGIN_RIGHT,
@@ -90,7 +90,7 @@ def fetch_city(name, lat, lon, tz, retries=3):
     )
     for i in range(retries):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "MarketDataBot/1.0"})
+            req = urllib.request.Request(url, headers={"User-Agent": "mboya-x-market-data-bot/1.0"})
             with urllib.request.urlopen(req, timeout=15) as r:
                 data = json.loads(r.read())
             cur = data.get("current", {})

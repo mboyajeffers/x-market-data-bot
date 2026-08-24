@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Media & Streaming Sector Snapshot — X card generator
-Output: REVENUE/X/cards/media_x_card_YYYY-MM-DD.png (1200x675px)
+Output: cards/media_x_card_YYYY-MM-DD.png (1200x675px)
 Theme: #06091a background | #2563eb blue
 Data: yfinance (streaming/media stocks + XLC comm. services ETF + SPY/VIX)
 """

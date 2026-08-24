@@ -31,6 +31,8 @@ Cron — Mac (local Eastern time, DST-aware):
     0 13 * * *  worldcup (1PM ET daily — before afternoon/evening kickoffs)
     0 14 * * 1  betting (Monday afternoon)
     30 8 * * 1  finance (Monday morning)
+
+Cron — GitHub Actions (Mac-independent, UTC): see .github/workflows/
 """
 
 import argparse
@@ -223,7 +225,7 @@ def _edgar_count(query, form, days=30):
     )
     try:
         req = urllib.request.Request(url, headers={
-            "User-Agent": "MarketDataClient/1.0 (contact: MboyaJeffers9@gmail.com)",
+            "User-Agent": "mboya-x-market-data-bot/1.0 (github.com/mboyajeffers/x-market-data-bot)",
             "Accept": "application/json",
         })
         with urllib.request.urlopen(req, timeout=15) as r:
@@ -235,10 +237,11 @@ def _edgar_count(query, form, days=30):
 
 def _fred_latest(series_id):
     """Return most recent non-null value from a FRED series (Federal Reserve)."""
-    import csv, io
+    import csv
+    import io
     url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "MarketDataClient/1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "mboya-x-market-data-bot/1.0"})
         with urllib.request.urlopen(req, timeout=15) as r:
             text = r.read().decode("utf-8")
         rows = []
@@ -330,7 +333,18 @@ def _finalize_caption(parts, vertical):
     if budget < 0:
         # CTA itself exceeds 280 chars — shouldn't happen; never truncate it silently.
         return suffix[:280]
-    return body[:budget] + suffix
+    if len(body) <= budget:
+        return body + suffix
+    # Trim to the last complete line that fits, not a raw character cut —
+    # a hard [:budget] slice can land mid-word (e.g. "Source: EIA..." -> "Sourc").
+    lines, trimmed, used = body.split("\n"), [], 0
+    for line in lines:
+        added = len(line) + (1 if trimmed else 0)
+        if used + added > budget:
+            break
+        trimmed.append(line)
+        used += added
+    return "\n".join(trimmed) + suffix
 
 # ─── CAPTION BUILDERS ────────────────────────────────────────────────────────
 
@@ -452,8 +466,7 @@ def build_caption_crypto():
 
     parts.append("\nSource: CoinGecko · alternative.me · OKX")
     parts.append("Not investment advice.")
-    _append_cta(parts, "crypto")
-    return "\n".join(parts)[:280]
+    return _finalize_caption(parts, "crypto")
 
 
 def build_caption_oilgas():
@@ -481,8 +494,7 @@ def build_caption_oilgas():
             ctx += f"  |  Refinery util: {ref_util:.1f}%"
         parts.append(ctx)
     parts.append("\nSource: EIA via FRED · Yahoo Finance (NYMEX)  |  Not investment advice.")
-    _append_cta(parts, "oilgas")
-    return "\n".join(parts)[:280]
+    return _finalize_caption(parts, "oilgas")
 
 
 def build_caption_brokerage():
@@ -535,8 +547,7 @@ def build_caption_compliance():
     parts.append(f"S-1 Registrations (30d):   {s1}")
     parts.append(f"\nEnforcement level: {level}")
     parts.append("\nSource: SEC EDGAR (public filings)")
-    _append_cta(parts, "compliance")
-    return "\n".join(parts)[:280]
+    return _finalize_caption(parts, "compliance")
 
 
 def build_caption_betting():
@@ -604,8 +615,7 @@ def build_caption_betting():
         parts.append(f"\nActive: {season}")
         parts.append("\nSource: Yahoo Finance  |  Not investment advice.")
 
-    _append_cta(parts, "betting")
-    return "\n".join(parts)[:280]
+    return _finalize_caption(parts, "betting")
 
 
 def build_caption_gaming():
@@ -621,8 +631,7 @@ def build_caption_gaming():
         parts.append(f"SPY: {spy:+.1f}%")
     parts.append("\nSource: Yahoo Finance")
     parts.append("Not investment advice.")
-    _append_cta(parts, "gaming")
-    return "\n".join(parts)[:280]
+    return _finalize_caption(parts, "gaming")
 
 
 def build_caption_ecommerce():
@@ -641,8 +650,7 @@ def build_caption_ecommerce():
         stress = " elevated ⚠" if delinq > 3.0 else " (normal range)"
         parts.append(f"\nCC delinquency: {delinq:.1f}%{stress}")
     parts.append("\nSource: Yahoo Finance · FRED  |  Not investment advice.")
-    _append_cta(parts, "ecommerce")
-    return "\n".join(parts)[:280]
+    return _finalize_caption(parts, "ecommerce")
 
 
 def build_caption_media():
@@ -658,8 +666,7 @@ def build_caption_media():
         parts.append(f"SPY: {spy:+.1f}%")
     parts.append("\nSource: Yahoo Finance")
     parts.append("Not investment advice.")
-    _append_cta(parts, "media")
-    return "\n".join(parts)[:280]
+    return _finalize_caption(parts, "media")
 
 
 def build_caption_solar():
@@ -679,8 +686,7 @@ def build_caption_solar():
     else:
         parts.append("\nHenry Hub NG context in card (solar vs gas peaker economics).")
     parts.append("\nSource: Yahoo Finance · FRED  |  Not investment advice.")
-    _append_cta(parts, "solar")
-    return "\n".join(parts)[:280]
+    return _finalize_caption(parts, "solar")
 
 
 def build_caption_weather():
@@ -697,7 +703,7 @@ def build_caption_weather():
                f"&current=temperature_2m,weather_code"
                f"&temperature_unit=fahrenheit&timezone={tz}&forecast_days=1")
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "MarketDataClient/1.0"})
+            req = urllib.request.Request(url, headers={"User-Agent": "mboya-x-market-data-bot/1.0"})
             with urllib.request.urlopen(req, timeout=10) as r:
                 d = _json.loads(r.read())
             conditions.append((name, d["current"]["temperature_2m"]))
@@ -709,8 +715,7 @@ def build_caption_weather():
         parts.append(f"{city}: {temp:.0f}\u00b0F")
     parts.append("\n8 cities · 7-day forecast in card.")
     parts.append("\nSource: Open-Meteo (WMO-compliant, open-meteo.com)")
-    _append_cta(parts, "weather")
-    return "\n".join(parts)[:280]
+    return _finalize_caption(parts, "weather")
 
 
 def _fetch_wc_scoreboard(date_str):
