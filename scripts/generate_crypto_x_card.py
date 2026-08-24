@@ -60,20 +60,20 @@ def fetch_btc_oi():
         return float(data["data"][0].get("oiUsd") or 0)
     return None
 
-import matplotlib
+import matplotlib  # noqa: E402
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-from matplotlib.patches import FancyBboxPatch
+import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.gridspec as gridspec  # noqa: E402
+from matplotlib.patches import FancyBboxPatch  # noqa: E402
 
-from card_spec import (
-    FONT_TITLE, FONT_HEADLINE, FONT_STAT, FONT_HANDLE,
-    FONT_LABEL, FONT_VALUE, FONT_SMALL, FONT_TINY,
-    GS_TOP, GS_BOTTOM, GS_LEFT, GS_RIGHT, GS_WSPACE,
+from card_spec import (  # noqa: E402
+    FONT_TITLE, FONT_HEADLINE, FONT_HANDLE,
+    FONT_LABEL, FONT_SMALL, FONT_TINY,
+    GS_TOP, GS_BOTTOM, GS_WSPACE,
     HDR_TITLE_Y, HDR_HEADLINE_Y, HDR_STAT_Y, HDR_HANDLE_Y,
-    FOOTER_Y, FOOTER_LINE_Y, MARGIN_LEFT, MARGIN_RIGHT,
+    FOOTER_Y, MARGIN_LEFT, MARGIN_RIGHT,
 )
-from card_validator import detect_and_fix_overlaps
+from card_validator import detect_and_fix_overlaps  # noqa: E402
 
 
 # ─── PATHS ────────────────────────────────────────────────────────────────────

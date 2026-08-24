@@ -60,10 +60,10 @@ NOW         = datetime.now().strftime("%Y-%m-%d %H:%M")
 # ─── AFFILIATE CONFIG ─────────────────────────────────────────────────────────
 
 sys.path.insert(0, str(BOT_DIR))
-from affiliate_config import (
+from affiliate_config import (  # noqa: E402
     VERTICAL_CASHTAGS, VERTICAL_CTA, THREAD_REPLIES, REQUIRES_DISCLOSURE, BIO_LINK
 )
-import verify
+import verify  # noqa: E402
 
 # ─── VERTICALS ────────────────────────────────────────────────────────────────
 

@@ -387,7 +387,7 @@ def build_context_string(domain, signal_dict, headlines):
             for g in show[:4]:
                 lines.append(f"  {g['away']} @ {g['home']}  {g['detail']}")
 
-    context = "\n".join(l for l in lines if l.strip())
+    context = "\n".join(ln for ln in lines if ln.strip())
 
     # Append relevant headlines as additional context
     if headlines:

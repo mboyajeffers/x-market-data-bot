@@ -29,7 +29,7 @@ SCRIPTS_DIR = BOT_DIR.parent / "scripts"
 sys.path.insert(0, str(BOT_DIR))
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from affiliate_config import REQUIRES_DISCLOSURE, VERTICAL_CASHTAGS, BIO_LINK
+from affiliate_config import REQUIRES_DISCLOSURE, BIO_LINK  # noqa: E402
 
 try:
     from vertical_colors import VERTICAL as VERTICAL_COLORS
@@ -215,9 +215,9 @@ def verify_data(vertical, caption):
         checks.append(("data_fallback", PASS, "no fallback signature"))
 
     # 2. Numeric presence — a data card with no numbers is suspect
-    body = "\n".join(l for l in caption.splitlines()
-                     if not l.strip().startswith(("Source:", "Not ", "#", "→"))
-                     and "→" not in l)
+    body = "\n".join(ln for ln in caption.splitlines()
+                     if not ln.strip().startswith(("Source:", "Not ", "#", "→"))
+                     and "→" not in ln)
     has_numbers = bool(re.search(r"\d", body))
     checks.append(("data_numeric", PASS if has_numbers else WARN,
                    "numeric data present" if has_numbers else "no numbers detected in body"))

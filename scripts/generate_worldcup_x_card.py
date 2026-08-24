@@ -145,14 +145,14 @@ def fetch_group_leaders():
                 continue
             def _e(e):
                 team = e.get("team", {}).get("abbreviation", "???")[:3]
-                pts = w = d_ = l = 0
+                pts = w = d_ = losses = 0
                 for s in e.get("stats", []):
                     sn = s.get("name", "")
                     if sn == "points": pts = int(s.get("value", 0))
                     elif sn == "wins":   w  = int(s.get("value", 0))
                     elif sn == "ties":  d_  = int(s.get("value", 0))
-                    elif sn == "losses": l  = int(s.get("value", 0))
-                return team, pts, f"{w}-{d_}-{l}"
+                    elif sn == "losses": losses = int(s.get("value", 0))
+                return team, pts, f"{w}-{d_}-{losses}"
             t1, p1, r1 = _e(entries[0])
             t2, p2, r2 = _e(entries[1])
             groups.append({"group": name.replace("Group ", ""),

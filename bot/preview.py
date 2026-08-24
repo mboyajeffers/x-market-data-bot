@@ -19,8 +19,8 @@ from pathlib import Path
 BOT_DIR = Path(__file__).parent.resolve()
 sys.path.insert(0, str(BOT_DIR))
 
-from post import VERTICALS, CAPTION_BUILDERS, TEXT_ONLY_VERTICALS, run_generator
-import verify
+from post import VERTICALS, CAPTION_BUILDERS, TEXT_ONLY_VERTICALS, run_generator  # noqa: E402
+import verify  # noqa: E402
 
 STAGING_PATH = BOT_DIR / "staging.json"
 ALL_VERTICALS = list(VERTICALS.keys())

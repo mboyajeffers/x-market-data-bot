@@ -12,7 +12,6 @@ Optional vision QA (post-save):
 
 import os
 import subprocess
-import sys
 import matplotlib
 import matplotlib.text
 

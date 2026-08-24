@@ -23,10 +23,10 @@ from matplotlib.patches import FancyBboxPatch
 import yfinance as yf
 
 from card_spec import (
-    FONT_TITLE, FONT_HEADLINE, FONT_STAT, FONT_HANDLE,
-    FONT_LABEL, FONT_VALUE, FONT_SMALL, FONT_TINY,
-    GS_TOP, GS_BOTTOM, GS_LEFT, GS_RIGHT, GS_WSPACE,
-    HDR_TITLE_Y, HDR_HEADLINE_Y, HDR_STAT_Y, HDR_HANDLE_Y,
+    FONT_TITLE, FONT_HEADLINE, FONT_HANDLE,
+    FONT_LABEL, FONT_SMALL, FONT_TINY,
+    GS_TOP, GS_BOTTOM, GS_WSPACE,
+    HDR_TITLE_Y, HDR_HEADLINE_Y, HDR_HANDLE_Y,
     FOOTER_Y, FOOTER_LINE_Y, MARGIN_LEFT, MARGIN_RIGHT,
 )
 from card_validator import detect_and_fix_overlaps

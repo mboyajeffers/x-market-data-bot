@@ -36,7 +36,7 @@ TODAY    = datetime.now().strftime("%Y-%m-%d")
 NOW      = datetime.now().strftime("%Y-%m-%d %H:%M")
 
 sys.path.insert(0, str(BOT_DIR))
-from affiliate_config import THREAD_REPLIES, BIO_LINK, KRAKEN_AFFILIATE_URL, _kraken_live
+from affiliate_config import THREAD_REPLIES, BIO_LINK, KRAKEN_AFFILIATE_URL, _kraken_live  # noqa: E402
 
 
 # ─── DYNAMIC THREAD REPLY BUILDERS ───────────────────────────────────────────
@@ -59,7 +59,7 @@ def build_worldcup_thread_reply() -> str:
         _gumroad_wc_live, _betway_live,
     )
 
-    penn_ret = flut_ret = dkng_ret = None
+    penn_ret = flut_ret = _dkng_ret = None
     BASELINE = "2026-06-11"
 
     for sym, var_name in [("PENN", "penn_ret"), ("FLUT", "flut_ret"), ("DKNG", "dkng_ret")]:
@@ -73,7 +73,7 @@ def build_worldcup_thread_reply() -> str:
                 elif var_name == "flut_ret":
                     flut_ret = ret
                 else:
-                    dkng_ret = ret
+                    _dkng_ret = ret
             time.sleep(0.4)
         except Exception:
             pass

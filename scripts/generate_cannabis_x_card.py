@@ -18,9 +18,9 @@ from matplotlib.patches import FancyBboxPatch
 import yfinance as yf
 
 from card_spec import (
-    FONT_TITLE, FONT_HEADLINE, FONT_STAT, FONT_HANDLE,
-    FONT_LABEL, FONT_VALUE, FONT_SMALL, FONT_TINY, FONT_MICRO,
-    GS_TOP, GS_BOTTOM, GS_LEFT, GS_RIGHT, GS_WSPACE,
+    FONT_TITLE, FONT_HEADLINE, FONT_HANDLE,
+    FONT_LABEL, FONT_SMALL, FONT_TINY, FONT_MICRO,
+    GS_TOP, GS_BOTTOM, GS_WSPACE,
     HDR_TITLE_Y, HDR_HEADLINE_Y, HDR_STAT_Y, HDR_HANDLE_Y,
     FOOTER_Y, FOOTER_LINE_Y, MARGIN_LEFT, MARGIN_RIGHT,
 )
@@ -69,7 +69,7 @@ REVENUE_TIERS = [500_000, 1_000_000, 2_000_000, 4_000_000]
 def compute_280e_penalty(revenue):
     """280E extra federal tax vs normal company at same revenue."""
     gross_profit  = revenue * MARGIN
-    cogs          = revenue * (1 - MARGIN)
+    _cogs         = revenue * (1 - MARGIN)
     # 280E: taxed on gross profit (no operating expense deduction)
     cannabis_tax  = gross_profit * FED_RATE
     # Normal: taxed on net income (~20% of revenue)
@@ -167,7 +167,7 @@ def draw_card(mso_data):
 
     ax_bars.set_facecolor(CARD_BG)
     y_pos = range(len(labels))
-    bars = ax_bars.barh(list(y_pos), penalties, color=colors, height=0.62, alpha=0.85)
+    _bars = ax_bars.barh(list(y_pos), penalties, color=colors, height=0.62, alpha=0.85)
     ax_bars.set_yticks(list(y_pos))
     ax_bars.set_yticklabels(labels, fontsize=FONT_SMALL, color=WHITE)
     ax_bars.tick_params(axis="x", labelsize=6.5, colors=DIM)

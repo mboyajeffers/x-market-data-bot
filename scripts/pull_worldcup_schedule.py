@@ -18,14 +18,13 @@ Usage:
 import json
 import sys
 import time
-import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 
 # Reuse the proven ESPN parse + stage logic from the card generator.
 SCRIPTS_DIR = Path(__file__).parent
 sys.path.insert(0, str(SCRIPTS_DIR))
-from generate_worldcup_x_card import _parse_scoreboard, _fetch, get_stage  # noqa: E402
+from generate_worldcup_x_card import _parse_scoreboard, _fetch  # noqa: E402
 
 OUT_DIR   = SCRIPTS_DIR.parent / "schedule"
 JSON_PATH = OUT_DIR / "worldcup_schedule.json"

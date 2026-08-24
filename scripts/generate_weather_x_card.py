@@ -20,9 +20,9 @@ from matplotlib.patches import FancyBboxPatch
 import matplotlib.ticker as mticker
 
 from card_spec import (
-    FONT_TITLE, FONT_HEADLINE, FONT_STAT, FONT_HANDLE,
+    FONT_TITLE, FONT_HEADLINE, FONT_HANDLE,
     FONT_LABEL, FONT_VALUE, FONT_SMALL, FONT_TINY, FONT_MICRO,
-    GS_TOP, GS_BOTTOM, GS_LEFT, GS_RIGHT, GS_WSPACE,
+    GS_TOP, GS_BOTTOM, GS_WSPACE,
     HDR_TITLE_Y, HDR_HEADLINE_Y, HDR_STAT_Y, HDR_HANDLE_Y,
     FOOTER_Y, FOOTER_LINE_Y, MARGIN_LEFT, MARGIN_RIGHT,
 )
@@ -190,7 +190,7 @@ def draw_card(city_data):
     fig.text(MARGIN_LEFT, HDR_TITLE_Y, f"US Weather Snapshot — {TODAY}",
              fontsize=FONT_TITLE, fontweight="bold", color=WHITE, va="top")
     fig.text(MARGIN_LEFT, HDR_HEADLINE_Y, headline, fontsize=FONT_HEADLINE, color=CYAN, va="top")
-    fig.text(MARGIN_RIGHT, HDR_STAT_Y, f"8 major US cities  |  Open-Meteo",
+    fig.text(MARGIN_RIGHT, HDR_STAT_Y, "8 major US cities  |  Open-Meteo",
              fontsize=FONT_HEADLINE, color=DIM, va="top", ha="right")
     fig.text(MARGIN_RIGHT, HDR_HANDLE_Y, "@Mboya_Jeffers",
              fontsize=FONT_HANDLE, color=SKY, va="top", ha="right", fontweight="bold")

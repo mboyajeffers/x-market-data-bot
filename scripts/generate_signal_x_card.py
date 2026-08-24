@@ -13,15 +13,12 @@ import json
 import os
 import subprocess
 import sys
-import time
 from datetime import datetime, date
 from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import matplotlib.patheffects as pe
 from matplotlib.patches import FancyBboxPatch
 
 import yfinance as yf
@@ -29,17 +26,14 @@ import yfinance as yf
 # local imports
 SCRIPT_DIR = Path(__file__).parent
 sys.path.insert(0, str(SCRIPT_DIR))
-from card_spec import (
-    FONT_TITLE, FONT_HEADLINE, FONT_STAT, FONT_HANDLE,
-    FONT_LABEL, FONT_VALUE, FONT_SMALL, FONT_TINY,
-    GS_TOP, GS_BOTTOM, GS_LEFT, GS_RIGHT, GS_WSPACE,
-    HDR_TITLE_Y, HDR_HEADLINE_Y, HDR_STAT_Y, HDR_HANDLE_Y,
-    FOOTER_Y, FOOTER_LINE_Y, MARGIN_LEFT, MARGIN_RIGHT,
+from card_spec import (  # noqa: E402
+    FONT_TITLE, FONT_HEADLINE, FONT_LABEL, FONT_SMALL, FONT_TINY,
+    GS_TOP, HDR_TITLE_Y, HDR_HEADLINE_Y, FOOTER_Y, MARGIN_LEFT, MARGIN_RIGHT,
 )
-from card_validator import detect_and_fix_overlaps
+from card_validator import detect_and_fix_overlaps  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "bot"))
-from affiliate_config import GUMROAD_SIGNAL_URL, SIGNAL_PRICE
+from affiliate_config import GUMROAD_SIGNAL_URL, SIGNAL_PRICE  # noqa: E402
 
 # ─── PATHS & CONFIG ───────────────────────────────────────────────────────────
 
@@ -137,7 +131,7 @@ def build_card(signal_data: dict) -> Path:
 
     # ── Header ────────────────────────────────────────────────────────────────
     title_str = f"Morning Signals — {sig_date}"
-    regime_color = GREEN if regime == 'CLEAR' else AMBER if regime == 'WARNING' else RED
+    _regime_color = GREEN if regime == 'CLEAR' else AMBER if regime == 'WARNING' else RED
 
     # Title — centered, clean white
     fig.text(0.5, HDR_TITLE_Y, title_str,
