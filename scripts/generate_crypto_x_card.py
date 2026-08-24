@@ -3,7 +3,7 @@
 Crypto Market Snapshot — X card generator
 Output: REVENUE/X/cards/crypto_x_card_YYYY-MM-DD.png (1200x675px)
 Theme: #0d1117 background | #a855f7 purple | white text
-Data: CoinGecko public API (no key required) + Alternative.me Fear & Greed
+Data: CoinGecko public API (no key required) + Alternative.me Fear & Greed + OKX Futures
 """
 
 import json
@@ -12,8 +12,53 @@ import sys
 import time
 import urllib.request
 import urllib.error
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
+
+
+def okx_get(path, max_retries=3):
+    """Fetch from OKX public API — no auth required, no US geo-block."""
+    url = f"https://www.okx.com{path}"
+    for attempt in range(max_retries):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=15) as r:
+                return json.loads(r.read())
+        except Exception:
+            if attempt < max_retries - 1:
+                time.sleep(3)
+    return None
+
+
+def fetch_btc_funding_rate():
+    """Returns (rate_pct, label) — latest BTC-USD-SWAP 8hr funding rate via OKX.
+    Verifiable at: okx.com/api/v5/public/funding-rate?instId=BTC-USD-SWAP
+    """
+    data = okx_get("/api/v5/public/funding-rate?instId=BTC-USD-SWAP")
+    if data and data.get("code") == "0" and data.get("data"):
+        entry = data["data"][0]
+        raw   = float(entry.get("fundingRate") or entry.get("settFundingRate") or 0)
+        rate  = raw * 100
+        if rate > 0.05:
+            label = "CROWDED LONGS"
+        elif rate > 0.01:
+            label = "LONGS PAYING"
+        elif rate < -0.01:
+            label = "SHORTS PAYING"
+        else:
+            label = "NEUTRAL"
+        return round(rate, 4), label
+    return None, None
+
+
+def fetch_btc_oi():
+    """Returns BTC open interest in USD via OKX BTC-USD-SWAP.
+    Verifiable at: okx.com/api/v5/public/open-interest?instType=SWAP&instId=BTC-USD-SWAP
+    """
+    data = okx_get("/api/v5/public/open-interest?instType=SWAP&instId=BTC-USD-SWAP")
+    if data and data.get("code") == "0" and data.get("data"):
+        return float(data["data"][0].get("oiUsd") or 0)
+    return None
 
 import matplotlib
 matplotlib.use("Agg")
@@ -21,24 +66,37 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.patches import FancyBboxPatch
 
+from card_spec import (
+    FONT_TITLE, FONT_HEADLINE, FONT_STAT, FONT_HANDLE,
+    FONT_LABEL, FONT_VALUE, FONT_SMALL, FONT_TINY,
+    GS_TOP, GS_BOTTOM, GS_LEFT, GS_RIGHT, GS_WSPACE,
+    HDR_TITLE_Y, HDR_HEADLINE_Y, HDR_STAT_Y, HDR_HANDLE_Y,
+    FOOTER_Y, FOOTER_LINE_Y, MARGIN_LEFT, MARGIN_RIGHT,
+)
+from card_validator import detect_and_fix_overlaps
+
+
 # ─── PATHS ────────────────────────────────────────────────────────────────────
 
 OUT_DIR = Path(__file__).parent.parent / "cards"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
-TODAY     = datetime.now().strftime("%Y-%m-%d")
-TIMESTAMP = datetime.now().strftime("%Y-%m-%d %H:%M UTC")
+_now_utc  = datetime.now(timezone.utc)
+TODAY     = _now_utc.strftime("%Y-%m-%d")
+TIMESTAMP = _now_utc.strftime("%Y-%m-%d %H:%M UTC")
 OUT_PATH  = OUT_DIR / f"crypto_x_card_{TODAY}.png"
 
 # ─── COLORS ───────────────────────────────────────────────────────────────────
 
-BG      = "#0d1117"
-PURPLE  = "#a855f7"
-GREEN   = "#22c55e"
-RED     = "#ef4444"
-GREY    = "#6b7280"
-WHITE   = "#f1f5f9"
-DIM     = "#94a3b8"
-CARD_BG = "#161b22"
+BG           = "#0a0e14"   # site --bg-primary
+PURPLE       = "#a855f7"   # crypto accent: bright purple (CLAUDE.md #9333ea family)
+GREEN        = "#22c55e"
+RED          = "#ef4444"
+AMBER        = "#f59e0b"
+GREY         = "#64748b"   # site --text-muted
+WHITE        = "#f1f5f9"   # site --text-primary
+DIM          = "#94a3b8"   # site --text-secondary
+CARD_BG      = "#1a2130"   # site --bg-card
+PANEL_BORDER = "#2a3441"   # site --border-color
 
 # ─── COINGECKO ────────────────────────────────────────────────────────────────
 
@@ -159,7 +217,8 @@ def format_crypto_label(m):
 
 # ─── DRAW ─────────────────────────────────────────────────────────────────────
 
-def draw_card(markets, global_data, btc_metrics, eth_metrics, fg_value, fg_label):
+def draw_card(markets, global_data, btc_metrics, eth_metrics, fg_value, fg_label,
+              btc_fr=None, btc_fr_label=None, btc_oi=None):
 
     # Dynamic insight headline
     returns_7d = [m["price_change_percentage_7d_in_currency"]
@@ -186,13 +245,18 @@ def draw_card(markets, global_data, btc_metrics, eth_metrics, fg_value, fg_label
     plt.style.use("dark_background")
     fig = plt.figure(figsize=(12, 6.75), dpi=300, facecolor=BG)
 
+    # Top accent stripe
+    fig.add_artist(plt.Line2D([0, 1], [0.993, 0.993],
+                              transform=fig.transFigure, color=PURPLE, linewidth=2.5,
+                              solid_capstyle="butt", zorder=10))
+
     gs = gridspec.GridSpec(
         1, 3,
         figure=fig,
         width_ratios=[4.2, 2.9, 2.9],
         left=0.04, right=0.97,
-        top=0.82, bottom=0.13,
-        wspace=0.35,
+        top=GS_TOP, bottom=GS_BOTTOM,
+        wspace=GS_WSPACE,
     )
 
     ax_bars  = fig.add_subplot(gs[0, 0])
@@ -202,17 +266,17 @@ def draw_card(markets, global_data, btc_metrics, eth_metrics, fg_value, fg_label
     for ax in [ax_bars, ax_risk, ax_stats]:
         ax.set_facecolor(CARD_BG)
         for spine in ax.spines.values():
-            spine.set_edgecolor("#21262d")
+            spine.set_edgecolor(PANEL_BORDER)
 
     # ── HEADER ────────────────────────────────────────────────────────────────
-    fig.text(0.04, 0.93, f"Crypto Market Snapshot — {TODAY}",
-             fontsize=14, fontweight="bold", color=WHITE, va="top")
-    fig.text(0.04, 0.88, headline,
-             fontsize=9, color=PURPLE, va="top")
-    fig.text(0.97, 0.92, f"Fear & Greed: {fg_value} — {fg_label}",
-             fontsize=9, color=PURPLE, va="top", ha="right")
-    fig.text(0.97, 0.86, "@Mboya_Jeffers",
-             fontsize=8.5, color=PURPLE, va="top", ha="right", fontweight="bold")
+    fig.text(MARGIN_LEFT, HDR_TITLE_Y, f"Crypto Market Snapshot — {TODAY}",
+             fontsize=FONT_TITLE, fontweight="bold", color=WHITE, va="top")
+    fig.text(MARGIN_LEFT, HDR_HEADLINE_Y, headline,
+             fontsize=FONT_HEADLINE, color=PURPLE, va="top")
+    fig.text(MARGIN_RIGHT, HDR_STAT_Y, f"Fear & Greed: {fg_value} — {fg_label}",
+             fontsize=FONT_HEADLINE, color=PURPLE, va="top", ha="right")
+    fig.text(MARGIN_RIGHT, HDR_HANDLE_Y, "@Mboya_Jeffers",
+             fontsize=FONT_HANDLE, color=PURPLE, va="top", ha="right", fontweight="bold")
 
     # ── LEFT: BAR CHART (7d return, top5 + bottom3) ───────────────────────────
     sorted_by_7d = sorted(
@@ -230,12 +294,12 @@ def draw_card(markets, global_data, btc_metrics, eth_metrics, fg_value, fg_label
     y_pos = range(len(labels))
     ax_bars.barh(list(y_pos), values, color=colors, height=0.65, alpha=0.85)
     ax_bars.set_yticks(list(y_pos))
-    ax_bars.set_yticklabels(labels, fontsize=7.5, color=WHITE)
-    ax_bars.tick_params(axis="x", labelsize=7.5, colors=DIM)
+    ax_bars.set_yticklabels(labels, fontsize=FONT_LABEL, color=WHITE)
+    ax_bars.tick_params(axis="x", labelsize=FONT_SMALL, colors=DIM)
     ax_bars.axvline(0, color=GREY, linewidth=0.8, alpha=0.6)
-    ax_bars.set_title("7-Day Return (%)", fontsize=9, color=DIM, pad=6)
+    ax_bars.set_title("7-Day Return (%)", fontsize=FONT_HEADLINE, color=DIM, pad=6)
     ax_bars.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:+.1f}%"))
-    ax_bars.grid(axis="x", color="#21262d", linewidth=0.5, alpha=0.7)
+    ax_bars.grid(axis="x", color=PANEL_BORDER, linewidth=0.5, alpha=0.7)
 
     # Dynamic xlim — prevents label clipping
     xmin = min(values)
@@ -247,11 +311,11 @@ def draw_card(markets, global_data, btc_metrics, eth_metrics, fg_value, fg_label
     for i, (v, c) in enumerate(zip(values, colors)):
         ha = "left" if v >= 0 else "right"
         ax_bars.text(v + (offset if v >= 0 else -offset), i,
-                     f"{v:+.1f}%", va="center", ha=ha, fontsize=7, color=c)
+                     f"{v:+.1f}%", va="center", ha=ha, fontsize=FONT_TINY, color=c)
 
     # ── CENTER: RISK TABLE (BTC + ETH) ────────────────────────────────────────
     ax_risk.axis("off")
-    ax_risk.set_title("Risk Metrics", fontsize=9, color=DIM, pad=6)
+    ax_risk.set_title("Risk Metrics", fontsize=FONT_HEADLINE, color=DIM, pad=6)
 
     risk_data = [
         ("",              "BTC",                               "ETH"),
@@ -263,23 +327,23 @@ def draw_card(markets, global_data, btc_metrics, eth_metrics, fg_value, fg_label
     ]
 
     row_h  = 0.145
-    col_x  = [0.04, 0.46, 0.76]
+    col_x  = [0.04, 0.52, 0.81]   # value cols pushed right so larger labels (e.g. "Max Drawdown") don't collide
     y_start = 0.83
 
-    ax_risk.text(col_x[1], y_start, "BTC", fontsize=9, fontweight="bold",
+    ax_risk.text(col_x[1], y_start, "BTC", fontsize=FONT_HEADLINE, fontweight="bold",
                  color=PURPLE, transform=ax_risk.transAxes, ha="center")
-    ax_risk.text(col_x[2], y_start, "ETH", fontsize=9, fontweight="bold",
+    ax_risk.text(col_x[2], y_start, "ETH", fontsize=FONT_HEADLINE, fontweight="bold",
                  color=PURPLE, transform=ax_risk.transAxes, ha="center")
 
     for i, row in enumerate(risk_data[1:]):
         y = y_start - (i + 1) * row_h
-        bg_color = "#0d1117" if i % 2 == 0 else CARD_BG
+        bg_color = "#0a0f18" if i % 2 == 0 else CARD_BG
         rect = FancyBboxPatch((0, y - 0.01), 1.0, row_h,
                               boxstyle="round,pad=0.01",
                               facecolor=bg_color, edgecolor="none",
                               transform=ax_risk.transAxes, clip_on=False)
         ax_risk.add_patch(rect)
-        ax_risk.text(col_x[0], y + 0.045, row[0], fontsize=7.5, color=DIM,
+        ax_risk.text(col_x[0], y + 0.045, row[0], fontsize=FONT_LABEL, color=DIM,
                      transform=ax_risk.transAxes, va="center")
 
         for j, val in enumerate([row[1], row[2]]):
@@ -293,16 +357,16 @@ def draw_card(markets, global_data, btc_metrics, eth_metrics, fg_value, fg_label
                         color = GREEN if num > 0 else RED
                 except ValueError:
                     pass
-            ax_risk.text(col_x[j+1], y + 0.045, val, fontsize=7.5, color=color,
+            ax_risk.text(col_x[j+1], y + 0.045, val, fontsize=FONT_LABEL, color=color,
                          transform=ax_risk.transAxes, ha="center", va="center")
 
     ax_risk.text(0.5, 0.02, "30-day data  |  RF: 4.5%  |  Log returns",
-                 fontsize=6, color=GREY, transform=ax_risk.transAxes,
+                 fontsize=FONT_TINY, color=GREY, transform=ax_risk.transAxes,
                  ha="center", style="italic")
 
     # ── RIGHT: GLOBAL STATS ────────────────────────────────────────────────────
     ax_stats.axis("off")
-    ax_stats.set_title("Market Overview", fontsize=9, color=DIM, pad=6)
+    ax_stats.set_title("Market Overview", fontsize=FONT_HEADLINE, color=DIM, pad=6)
 
     btc_price = next((m["current_price"] for m in markets if m["symbol"] == "btc"), None)
     eth_price = next((m["current_price"] for m in markets if m["symbol"] == "eth"), None)
@@ -317,8 +381,13 @@ def draw_card(markets, global_data, btc_metrics, eth_metrics, fg_value, fg_label
         ("Avg 7d Return",  f"{avg_7d:+.2f}%"),
         ("Assets Tracked", f"{len(returns_7d)} / 20"),
     ]
+    # Practitioner layer: BTC funding rate + open interest (cascade risk signals)
+    if btc_fr is not None:
+        stats.append(("BTC Funding (8hr)", f"{btc_fr:+.4f}% {btc_fr_label or ''}"))
+    if btc_oi is not None:
+        stats.append(("BTC OI (contracts)", f"{btc_oi/1000:.1f}K"))
 
-    row_h2 = 0.13
+    row_h2 = 0.11
     y2 = 0.82
     for label, val in stats:
         val_color = WHITE
@@ -328,10 +397,14 @@ def draw_card(markets, global_data, btc_metrics, eth_metrics, fg_value, fg_label
                 val_color = GREEN if num > 0 else RED
             except ValueError:
                 pass
+        elif label == "BTC Funding (8hr)":
+            if btc_fr is not None:
+                val_color = RED if btc_fr > 0.03 else (AMBER if btc_fr > 0.01 else
+                            (GREEN if btc_fr < -0.01 else WHITE))
 
-        ax_stats.text(0.06, y2, label, fontsize=8, color=DIM,
+        ax_stats.text(0.06, y2, label, fontsize=FONT_LABEL, color=DIM,
                       transform=ax_stats.transAxes, va="top")
-        ax_stats.text(0.94, y2, val, fontsize=9, color=val_color,
+        ax_stats.text(0.94, y2, val, fontsize=FONT_SMALL, color=val_color,
                       fontweight="bold", transform=ax_stats.transAxes,
                       ha="right", va="top")
         ax_stats.add_artist(plt.Line2D(
@@ -341,15 +414,17 @@ def draw_card(markets, global_data, btc_metrics, eth_metrics, fg_value, fg_label
         y2 -= row_h2
 
     # ── FOOTER ────────────────────────────────────────────────────────────────
-    fig.text(0.04, 0.06, f"Source: CoinGecko  |  Generated: {TIMESTAMP}",
-             fontsize=7.5, color=GREY, va="top")
-    fig.text(0.97, 0.06, "github.com/mboyajeffers/data-intelligence-platform",
-             fontsize=7.5, color=PURPLE, va="top", ha="right")
+    fig.text(MARGIN_LEFT, FOOTER_Y, f"Source: CoinGecko · OKX  |  Generated: {TIMESTAMP}",
+             fontsize=FONT_SMALL, color=GREY, va="top")
+    fig.text(MARGIN_RIGHT, FOOTER_Y, "@Mboya_Jeffers",
+             fontsize=FONT_SMALL, color=PURPLE, va="top", ha="right")
 
-    fig.add_artist(plt.Line2D([0.04, 0.97], [0.105, 0.105],
+    fig.add_artist(plt.Line2D([0.04, 0.97], [0.107, 0.107],
                               transform=fig.transFigure,
-                              color="#21262d", linewidth=0.8))
+                              color=PANEL_BORDER, linewidth=0.8))
 
+    
+    detect_and_fix_overlaps(fig)
     plt.savefig(OUT_PATH, dpi=300, bbox_inches="tight",
                 facecolor=BG, edgecolor="none")
     plt.close()
@@ -381,8 +456,19 @@ def main():
     btc_metrics = compute_metrics(btc_prices)
     eth_metrics = compute_metrics(eth_prices)
 
+    print("Fetching Binance: BTC funding rate...")
+    btc_fr, btc_fr_label = fetch_btc_funding_rate()
+    if btc_fr is not None:
+        print(f"  BTC funding: {btc_fr:+.4f}% ({btc_fr_label})")
+
+    print("Fetching Binance: BTC open interest...")
+    btc_oi = fetch_btc_oi()
+    if btc_oi is not None:
+        print(f"  BTC OI: {btc_oi/1000:.1f}K contracts")
+
     print("Drawing card...")
-    draw_card(markets, global_data, btc_metrics, eth_metrics, fg_value, fg_label)
+    draw_card(markets, global_data, btc_metrics, eth_metrics, fg_value, fg_label,
+              btc_fr=btc_fr, btc_fr_label=btc_fr_label, btc_oi=btc_oi)
     print("Done.")
 
 

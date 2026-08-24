@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:      #0a0e14;
+  --bg2:     #121820;
+  --card:    #1a2130;
+  --green:   #22c55e;   /* betting accent */
+  --green2:  #14b8a6;   /* gradient partner */
+  --green3:  #16a34a;   /* gradient start */
+  --blue:    #3b82f6;
+  --red:     #ef4444;
+  --amber:   #f59e0b;
+  --txt:     #f1f5f9;
+  --dim:     #94a3b8;
+  --muted:   #64748b;
+  --border:  #2a3441;
+  --grad:    linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+  --grad-bar: linear-gradient(90deg, #22c55e 0%, #14b8a6 100%);
+}
+
+html, body {
+  width: 1200px;
+  height: 675px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.card {
+  width: 1200px;
+  height: 675px;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  padding: 0 14px 8px;
+  position: relative;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  color: var(--txt);
+  overflow: hidden;
+}
+
+/* Betting gradient stripe */
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: var(--grad);
+  z-index: 10;
+}
+
+/* ── HEADER ─────────────────────────────────────────────────── */
+.header {
+  padding-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-shrink: 0;
+  height: 68px;
+}
+
+.header-left { flex: 1; }
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.live-dot {
+  width: 8px; height: 8px;
+  background: var(--green);
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px rgba(34,197,94,0.6);
+}
+
+.title-main {
+  font-size: 23px;
+  font-weight: 700;
+  color: var(--txt);
+  letter-spacing: -0.4px;
+  line-height: 1;
+}
+
+.title-sep { color: var(--muted); font-weight: 400; }
+
+.title-sub {
+  font-size: 14.5px;
+  color: var(--dim);
+  font-style: italic;
+  line-height: 1;
+}
+
+.header-subhead {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--green);
+  letter-spacing: 0.2px;
+}
+
+.header-right {
+  text-align: right;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.brand-handle {
+  font-family: 'Space Mono', monospace;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--green);
+  margin-bottom: 4px;
+}
+
+.brand-site {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  color: var(--muted);
+}
+
+/* ── CONTENT — 3 columns ────────────────────────────────────── */
+.content {
+  flex: 1;
+  display: flex;
+  gap: 10px;
+  min-height: 0;
+}
+
+/* ── PANEL ──────────────────────────────────────────────────── */
+.data-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.section-tag {
+  font-family: 'Space Mono', monospace;
+  font-size: 7.5px;
+  color: var(--green);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+/* ── BAR PANEL ──────────────────────────────────────────────── */
+.bars-panel {
+  flex: 1.05;
+}
+
+.bar-list {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+}
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bar-label {
+  font-size: 12px;
+  color: var(--dim);
+  width: 108px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bar-track {
+  flex: 1;
+  height: 18px;
+  background: var(--bg2);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.bar-fill {
+  position: absolute;
+  top: 0; bottom: 0;
+  border-radius: 4px;
+  left: 0;
+}
+.bar-fill.pos { background: var(--grad-bar); }
+.bar-fill.neg { background: linear-gradient(90deg, #ef4444, #dc2626); right: 0; left: auto; }
+
+.bar-val {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  width: 52px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.bar-val.pos { color: var(--green); }
+.bar-val.neg { color: var(--red); }
+
+.panel-src {
+  font-family: 'Space Mono', monospace;
+  font-size: 6.5px;
+  color: var(--muted);
+  margin-top: 6px;
+  flex-shrink: 0;
+  font-style: italic;
+}
+
+/* ── SPARKLINE PANEL ────────────────────────────────────────── */
+.spark-panel { flex: 1.2; }
+
+.spark-labels {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.spark-lbl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.spark-dot {
+  width: 10px; height: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.spark-name {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--dim);
+}
+
+.spark-pct {
+  font-family: 'Space Mono', monospace;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.spark-pct.pos { color: var(--green); }
+.spark-pct.neg { color: var(--red); }
+.spark-pct.amber { color: var(--amber); }
+
+.spark-container {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.spark-container svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.spark-axis-label {
+  position: absolute;
+  right: 0;
+  font-family: 'Space Mono', monospace;
+  font-size: 8px;
+  color: var(--muted);
+}
+
+.spark-baseline-label {
+  position: absolute;
+  left: 0;
+  font-family: 'Space Mono', monospace;
+  font-size: 8px;
+  color: var(--muted);
+}
+
+.spark-footer {
+  font-family: 'Space Mono', monospace;
+  font-size: 8px;
+  color: var(--muted);
+  margin-top: 5px;
+  flex-shrink: 0;
+  font-style: italic;
+  text-align: center;
+}
+
+/* ── STATS PANEL ────────────────────────────────────────────── */
+.stats-panel { flex: 0.75; }
+
+.stat-list {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.stat-row:last-child { border-bottom: none; }
+
+.stat-lbl {
+  font-size: 10.5px;
+  color: var(--dim);
+  line-height: 1;
+}
+
+.stat-val {
+  font-family: 'Space Mono', monospace;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: right;
+}
+.stat-val.pos   { color: var(--green); }
+.stat-val.neg   { color: var(--red);   }
+.stat-val.brand { color: var(--green); }
+.stat-val.amber { color: var(--amber); }
+.stat-val.dim   { color: var(--dim);   }
+
+.cta-box {
+  margin-top: 8px;
+  background: var(--bg2);
+  border: 1px solid var(--green);
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.cta-lbl {
+  font-size: 9.5px;
+  color: var(--dim);
+  margin-bottom: 3px;
+}
+
+.cta-link {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--green);
+  font-weight: 700;
+}
+
+/* ── FOOTER ─────────────────────────────────────────────────── */
+.footer {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 5px;
+  margin-top: 5px;
+  border-top: 1px solid var(--border);
+}
+
+.footer-src {
+  font-family: 'Space Mono', monospace;
+  font-size: 7.5px;
+  color: var(--muted);
+}
+
+.footer-brand {
+  font-family: 'Space Mono', monospace;
+  font-size: 7.5px;
+  color: var(--green);
+  font-weight: 700;
+}
+</style>
+</head>
+<body>
+<div class="card">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <div class="title-row">
+        <div class="live-dot"></div>
+        <span class="title-main">Sports Betting Sector</span>
+        <span class="title-sep">&nbsp;&middot;&nbsp;</span>
+        <span class="title-sub">{{ date }}</span>
+      </div>
+      <div class="header-subhead">{{ subhead }}</div>
+    </div>
+    <div class="header-right">
+      <div class="brand-handle">@Mboya_Jeffers</div>
+    </div>
+  </div>
+
+  <!-- 3-COLUMN CONTENT -->
+  <div class="content">
+
+    <!-- LEFT: BAR CHART -->
+    <div class="data-panel bars-panel">
+      <div class="section-tag">5-Day Operator Return</div>
+      <div class="bar-list">
+        {% for b in bars %}
+        <div class="bar-row">
+          <div class="bar-label">{{ b.name }}</div>
+          <div class="bar-track">
+            <div class="bar-fill {{ 'pos' if b.pos else 'neg' }}" style="width:{{ b.pct }}%"></div>
+          </div>
+          <div class="bar-val {{ 'pos' if b.pos else 'neg' }}">{{ b.label }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="panel-src">Yahoo Finance &middot; 5 trading days</div>
+    </div>
+
+    <!-- CENTER: SVG SPARKLINE -->
+    <div class="data-panel spark-panel">
+      <div class="section-tag">BETZ ETF vs S&amp;P 500 &mdash; {{ spark.n_days }}-Day Performance</div>
+
+      <div class="spark-labels">
+        <div class="spark-lbl">
+          <div class="spark-dot" style="background:#22c55e"></div>
+          <span class="spark-name">BETZ&nbsp;</span>
+          <span class="spark-pct {{ 'pos' if spark.betz_pct >= 0 else 'neg' }}">{{ '{:+.1f}'.format(spark.betz_pct) }}%</span>
+        </div>
+        <div class="spark-lbl">
+          <div class="spark-dot" style="background:#f59e0b; height:2px; border-top:1px dashed #f59e0b; background:none;"></div>
+          <span class="spark-name">SPY&nbsp;</span>
+          <span class="spark-pct {{ 'pos' if spark.spy_pct >= 0 else 'neg' }} amber">{{ '{:+.1f}'.format(spark.spy_pct) }}%</span>
+        </div>
+      </div>
+
+      <div class="spark-container">
+        <svg viewBox="0 0 400 {{ spark.height }}" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="betz-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#22c55e" stop-opacity="0.18"/>
+              <stop offset="100%" stop-color="#22c55e" stop-opacity="0.01"/>
+            </linearGradient>
+          </defs>
+          <!-- Baseline at index 100 -->
+          <line x1="0" y1="{{ spark.baseline_y }}" x2="400" y2="{{ spark.baseline_y }}"
+                stroke="#2a3441" stroke-width="1" stroke-dasharray="5,4"/>
+          <!-- BETZ fill area -->
+          <polygon points="{{ spark.betz_poly }}" fill="url(#betz-fill)"/>
+          <!-- BETZ line -->
+          <polyline points="{{ spark.betz_line }}"
+                    fill="none" stroke="#22c55e" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+          <!-- SPY dashed line -->
+          <polyline points="{{ spark.spy_line }}"
+                    fill="none" stroke="#f59e0b" stroke-width="1.5"
+                    stroke-dasharray="7,4" stroke-linejoin="round" opacity="0.75"/>
+        </svg>
+        <div class="spark-baseline-label" style="top:{{ spark.baseline_y_pct }}%">100</div>
+      </div>
+
+      <div class="spark-footer">Normalized: 100 = {{ spark.n_days }} trading days ago &middot; Yahoo Finance</div>
+    </div>
+
+    <!-- RIGHT: STATS -->
+    <div class="data-panel stats-panel">
+      <div class="section-tag">Sector Summary</div>
+      <div class="stat-list">
+        {% for s in stats %}
+        <div class="stat-row">
+          <span class="stat-lbl">{{ s.label }}</span>
+          <span class="stat-val {{ s.cls }}">{{ s.value }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="cta-box">
+        <div class="cta-lbl">{{ cta_label }}</div>
+        <div class="cta-link">&rarr; {{ cta_link }}</div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <span class="footer-src">Stocks: Yahoo Finance &middot; Handle: AGA 2025-2026 &middot; {{ timestamp }} &middot; Not betting advice</span>
+  </div>
+
+</div>
+</body>
+</html>

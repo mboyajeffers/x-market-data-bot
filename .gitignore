@@ -14,3 +14,4 @@ avatar.jpg
 # runtime logs
 bot/error.log
 bot/post_log.json
+bot/staging.json

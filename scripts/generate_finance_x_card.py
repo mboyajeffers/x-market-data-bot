@@ -11,7 +11,7 @@ import io
 import subprocess
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import matplotlib
@@ -21,25 +21,36 @@ import matplotlib.gridspec as gridspec
 from matplotlib.patches import FancyBboxPatch
 import yfinance as yf
 
+from card_spec import (
+    FONT_TITLE, FONT_HEADLINE, FONT_STAT, FONT_HANDLE,
+    FONT_LABEL, FONT_VALUE, FONT_SMALL, FONT_TINY,
+    GS_TOP, GS_BOTTOM, GS_LEFT, GS_RIGHT, GS_WSPACE,
+    HDR_TITLE_Y, HDR_HEADLINE_Y, HDR_STAT_Y, HDR_HANDLE_Y,
+    FOOTER_Y, FOOTER_LINE_Y, MARGIN_LEFT, MARGIN_RIGHT,
+)
+from card_validator import detect_and_fix_overlaps
+
 # ─── PATHS ────────────────────────────────────────────────────────────────────
 
 OUT_DIR = Path(__file__).parent.parent / "cards"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
-TODAY     = datetime.now().strftime("%Y-%m-%d")
-TIMESTAMP = datetime.now().strftime("%Y-%m-%d %H:%M UTC")
+_now_utc  = datetime.now(timezone.utc)
+TODAY     = _now_utc.strftime("%Y-%m-%d")
+TIMESTAMP = _now_utc.strftime("%Y-%m-%d %H:%M UTC")
 OUT_PATH  = OUT_DIR / f"finance_x_card_{TODAY}.png"
 
 # ─── COLORS ───────────────────────────────────────────────────────────────────
 
-BG      = "#0a1628"
-TEAL    = "#2d9596"
-GREEN   = "#22c55e"
-RED     = "#ef4444"
-GREY    = "#6b7280"
-WHITE   = "#f1f5f9"
-DIM     = "#94a3b8"
-AMBER   = "#f59e0b"
-CARD_BG = "#0f1f38"
+BG           = "#0a0e14"   # site --bg-primary
+TEAL         = "#3b82f6"   # finance accent: bright blue (CLAUDE.md #1e3a5f → bright)
+GREEN        = "#22c55e"
+RED          = "#ef4444"
+GREY         = "#64748b"   # site --text-muted
+WHITE        = "#f1f5f9"   # site --text-primary
+DIM          = "#94a3b8"   # site --text-secondary
+AMBER        = "#f59e0b"
+CARD_BG      = "#1a2130"   # site --bg-card
+PANEL_BORDER = "#2a3441"   # site --border-color
 
 # ─── SECTORS ──────────────────────────────────────────────────────────────────
 
@@ -173,7 +184,7 @@ def fetch_cpi_yoy(max_retries=3):
 # ─── DRAW ─────────────────────────────────────────────────────────────────────
 
 def draw_card(sector_data, spy_price, spy_ytd, vix, fed_funds, cpi_yoy, ten_yr,
-              fed_date, cpi_date, ten_yr_date):
+              fed_date, cpi_date, ten_yr_date, t10y2y=None, ig_spread=None):
 
     # Dynamic insight headline
     top = max(sector_data, key=lambda x: x["ret5d"])
@@ -197,13 +208,18 @@ def draw_card(sector_data, spy_price, spy_ytd, vix, fed_funds, cpi_yoy, ten_yr,
     plt.style.use("dark_background")
     fig = plt.figure(figsize=(12, 6.75), dpi=300, facecolor=BG)
 
+    # Top accent stripe
+    fig.add_artist(plt.Line2D([0, 1], [0.993, 0.993],
+                              transform=fig.transFigure, color=TEAL, linewidth=2.5,
+                              solid_capstyle="butt", zorder=10))
+
     gs = gridspec.GridSpec(
         1, 3,
         figure=fig,
         width_ratios=[4.5, 3, 2.5],
-        left=0.02, right=0.98,
-        top=0.82, bottom=0.13,
-        wspace=0.32,
+        left=GS_LEFT, right=GS_RIGHT,
+        top=GS_TOP, bottom=GS_BOTTOM,
+        wspace=GS_WSPACE,
     )
 
     ax_sectors = fig.add_subplot(gs[0, 0])
@@ -213,17 +229,18 @@ def draw_card(sector_data, spy_price, spy_ytd, vix, fed_funds, cpi_yoy, ten_yr,
     for ax in [ax_sectors, ax_macro, ax_movers]:
         ax.set_facecolor(CARD_BG)
         for spine in ax.spines.values():
-            spine.set_edgecolor("#1a2f4a")
+            spine.set_edgecolor(PANEL_BORDER)
 
     # ── HEADER ────────────────────────────────────────────────────────────────
-    fig.text(0.02, 0.93, f"Market Snapshot — {TODAY}",
-             fontsize=14, fontweight="bold", color=WHITE, va="top")
-    fig.text(0.02, 0.88, headline,
-             fontsize=9, color=TEAL, va="top")
-    fig.text(0.98, 0.92, f"SPY: ${spy_price:.2f}  |  YTD: {spy_ytd:+.1f}%  |  VIX: {vix:.1f}",
-             fontsize=9, color=TEAL, va="top", ha="right")
-    fig.text(0.98, 0.86, "@Mboya_Jeffers",
-             fontsize=8.5, color=TEAL, va="top", ha="right", fontweight="bold")
+    fig.text(MARGIN_LEFT, HDR_TITLE_Y, f"Market Snapshot — {TODAY}",
+             fontsize=FONT_TITLE, fontweight="bold", color=WHITE, va="top")
+    fig.text(MARGIN_LEFT, HDR_HEADLINE_Y, headline,
+             fontsize=FONT_HEADLINE, color=TEAL, va="top")
+    fig.text(MARGIN_RIGHT, HDR_STAT_Y,
+             f"SPY: ${spy_price:.2f}  |  YTD: {spy_ytd:+.1f}%  |  VIX: {vix:.1f}",
+             fontsize=FONT_STAT, color=TEAL, va="top", ha="right")
+    fig.text(MARGIN_RIGHT, HDR_HANDLE_Y, "@Mboya_Jeffers",
+             fontsize=FONT_HANDLE, color=TEAL, va="top", ha="right", fontweight="bold")
 
     # ── LEFT: SECTOR BAR CHART ────────────────────────────────────────────────
     sorted_sectors = sorted(sector_data, key=lambda x: x["ret5d"])
@@ -234,12 +251,12 @@ def draw_card(sector_data, spy_price, spy_ytd, vix, fed_funds, cpi_yoy, ten_yr,
     y_pos = range(len(labels))
     ax_sectors.barh(list(y_pos), values, color=colors, height=0.65, alpha=0.85)
     ax_sectors.set_yticks(list(y_pos))
-    ax_sectors.set_yticklabels(labels, fontsize=7.5, color=WHITE)
-    ax_sectors.tick_params(axis="x", labelsize=7, colors=DIM)
+    ax_sectors.set_yticklabels(labels, fontsize=FONT_LABEL, color=WHITE)
+    ax_sectors.tick_params(axis="x", labelsize=FONT_SMALL, colors=DIM)
     ax_sectors.axvline(0, color=GREY, linewidth=0.8, alpha=0.6)
-    ax_sectors.set_title("5-Day Sector Return (%)", fontsize=9, color=DIM, pad=6)
+    ax_sectors.set_title("5-Day Sector Return (%)", fontsize=FONT_LABEL, color=DIM, pad=6)
     ax_sectors.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:+.1f}%"))
-    ax_sectors.grid(axis="x", color="#1a2f4a", linewidth=0.5, alpha=0.7)
+    ax_sectors.grid(axis="x", color=PANEL_BORDER, linewidth=0.5, alpha=0.7)
 
     # Dynamic xlim — prevents label clipping on extreme values
     xmin = min(values)
@@ -251,11 +268,11 @@ def draw_card(sector_data, spy_price, spy_ytd, vix, fed_funds, cpi_yoy, ten_yr,
     for i, (v, c) in enumerate(zip(values, colors)):
         ha = "left" if v >= 0 else "right"
         ax_sectors.text(v + (offset if v >= 0 else -offset), i,
-                        f"{v:+.2f}%", va="center", ha=ha, fontsize=6.5, color=c)
+                        f"{v:+.2f}%", va="center", ha=ha, fontsize=FONT_SMALL, color=c)
 
     # ── CENTER: MACRO TABLE ────────────────────────────────────────────────────
     ax_macro.axis("off")
-    ax_macro.set_title("Macro Indicators", fontsize=9, color=DIM, pad=6)
+    ax_macro.set_title("Macro Indicators", fontsize=FONT_LABEL, color=DIM, pad=6)
 
     macro_rows = [
         ("Fed Funds Rate", f"{fed_funds:.2f}%"),
@@ -264,8 +281,14 @@ def draw_card(sector_data, spy_price, spy_ytd, vix, fed_funds, cpi_yoy, ten_yr,
         ("SPY YTD",        f"{spy_ytd:+.1f}%"),
         ("VIX",            f"{vix:.1f}"),
     ]
+    # Practitioner layer: yield curve + IG credit spread
+    if t10y2y is not None:
+        curve_label = "INVERTED" if t10y2y < 0 else "normal"
+        macro_rows.append(("Yield Curve", f"{t10y2y:+.2f}% {curve_label}"))
+    if ig_spread is not None:
+        macro_rows.append(("IG Credit Spread", f"{ig_spread:.0f}bps"))
 
-    row_h = 0.145
+    row_h = 0.115
     y = 0.85
     for i, (label, val) in enumerate(macro_rows):
         bg = "#0a1628" if i % 2 == 0 else CARD_BG
@@ -274,22 +297,26 @@ def draw_card(sector_data, spy_price, spy_ytd, vix, fed_funds, cpi_yoy, ten_yr,
                               facecolor=bg, edgecolor="none",
                               transform=ax_macro.transAxes, clip_on=False)
         ax_macro.add_patch(rect)
-        ax_macro.text(0.06, y + 0.05, label, fontsize=8.5, color=DIM,
+        ax_macro.text(0.06, y + 0.05, label, fontsize=FONT_LABEL, color=DIM,
                       transform=ax_macro.transAxes, va="center")
 
         val_color = WHITE
         try:
-            num = float(val.replace("%", "").replace("+", "").replace("$", ""))
+            num = float(val.replace("%", "").replace("+", "").replace("$", "").split()[0])
             if label == "VIX":
                 val_color = RED if num > 25 else (WHITE if num > 18 else GREEN)
             elif label == "SPY YTD":
                 val_color = GREEN if num > 0 else RED
             elif label == "CPI YoY":
                 val_color = RED if num > 4 else (WHITE if num > 2.5 else GREEN)
+            elif label == "Yield Curve":
+                val_color = RED if num < 0 else GREEN
+            elif label == "IG Credit Spread":
+                val_color = RED if num > 150 else (AMBER if num > 100 else GREEN)
         except ValueError:
             pass
 
-        ax_macro.text(0.94, y + 0.05, val, fontsize=9, color=val_color,
+        ax_macro.text(0.94, y + 0.05, val, fontsize=FONT_VALUE, color=val_color,
                       fontweight="bold", transform=ax_macro.transAxes,
                       ha="right", va="center")
         y -= row_h
@@ -298,51 +325,53 @@ def draw_card(sector_data, spy_price, spy_ytd, vix, fed_funds, cpi_yoy, ten_yr,
     stale = days_old(cpi_date) > 35 or days_old(fed_date) > 35
     stale_color = AMBER if stale else GREY
     fred_note = f"FRED data as of {cpi_date}" + ("  ⚠ publication lag" if stale else "")
-    ax_macro.text(0.5, 0.02, fred_note, fontsize=6, color=stale_color,
+    ax_macro.text(0.5, 0.02, fred_note, fontsize=FONT_TINY, color=stale_color,
                   transform=ax_macro.transAxes, ha="center", style="italic")
 
     # ── RIGHT: TOP & BOTTOM MOVERS ────────────────────────────────────────────
     ax_movers.axis("off")
-    ax_movers.set_title("Week Movers", fontsize=9, color=DIM, pad=6)
+    ax_movers.set_title("Week Movers", fontsize=FONT_LABEL, color=DIM, pad=6)
 
     top2    = sorted(sector_data, key=lambda x: x["ret5d"], reverse=True)[:2]
     bottom2 = sorted(sector_data, key=lambda x: x["ret5d"])[:2]
 
-    ax_movers.text(0.5, 0.91, "TOP", fontsize=8, color=GREEN, fontweight="bold",
+    ax_movers.text(0.5, 0.91, "TOP", fontsize=FONT_SMALL, color=GREEN, fontweight="bold",
                    transform=ax_movers.transAxes, ha="center")
     for i, (s, yb) in enumerate(zip(top2, [0.82, 0.62])):
-        ax_movers.text(0.5, yb,        s["ticker"],                fontsize=10, color=GREEN,
+        ax_movers.text(0.5, yb,        s["ticker"],                fontsize=FONT_VALUE, color=GREEN,
                        fontweight="bold", transform=ax_movers.transAxes, ha="center")
-        ax_movers.text(0.5, yb - 0.05, s["name"],                  fontsize=6.5, color=DIM,
+        ax_movers.text(0.5, yb - 0.06, s["name"],                  fontsize=FONT_SMALL, color=DIM,
                        transform=ax_movers.transAxes, ha="center")
         arrow = "▲" if s["ret5d"] > 0 else "▼"
-        ax_movers.text(0.5, yb - 0.11, f"{arrow} {s['ret5d']:+.2f}%", fontsize=9,
+        ax_movers.text(0.5, yb - 0.13, f"{arrow} {s['ret5d']:+.2f}%", fontsize=FONT_VALUE,
                        color=GREEN, fontweight="bold", transform=ax_movers.transAxes, ha="center")
 
     ax_movers.add_artist(plt.Line2D(
         [0.05, 0.95], [0.44, 0.44],
         transform=ax_movers.transAxes, color="#1a2f4a", linewidth=1))
 
-    ax_movers.text(0.5, 0.40, "BOTTOM", fontsize=8, color=RED, fontweight="bold",
+    ax_movers.text(0.5, 0.40, "BOTTOM", fontsize=FONT_SMALL, color=RED, fontweight="bold",
                    transform=ax_movers.transAxes, ha="center")
     for i, (s, yb) in enumerate(zip(bottom2, [0.30, 0.12])):
-        ax_movers.text(0.5, yb,        s["ticker"],                fontsize=10, color=RED,
+        ax_movers.text(0.5, yb,        s["ticker"],                fontsize=FONT_VALUE, color=RED,
                        fontweight="bold", transform=ax_movers.transAxes, ha="center")
-        ax_movers.text(0.5, yb - 0.05, s["name"],                  fontsize=6.5, color=DIM,
+        ax_movers.text(0.5, yb - 0.06, s["name"],                  fontsize=FONT_SMALL, color=DIM,
                        transform=ax_movers.transAxes, ha="center")
         arrow = "▲" if s["ret5d"] > 0 else "▼"
-        ax_movers.text(0.5, yb - 0.11, f"{arrow} {s['ret5d']:+.2f}%", fontsize=9,
+        ax_movers.text(0.5, yb - 0.13, f"{arrow} {s['ret5d']:+.2f}%", fontsize=FONT_VALUE,
                        color=RED, fontweight="bold", transform=ax_movers.transAxes, ha="center")
 
     # ── FOOTER ────────────────────────────────────────────────────────────────
-    fig.text(0.02, 0.06, f"Source: Yahoo Finance + FRED  |  Generated: {TIMESTAMP}",
-             fontsize=7.5, color=GREY, va="top")
-    fig.text(0.98, 0.06, "github.com/mboyajeffers/data-intelligence-platform",
-             fontsize=7.5, color=TEAL, va="top", ha="right")
+    fig.text(MARGIN_LEFT, FOOTER_Y, f"Source: Yahoo Finance + FRED  |  Generated: {TIMESTAMP}",
+             fontsize=FONT_TINY, color=GREY, va="top")
+    fig.text(MARGIN_RIGHT, FOOTER_Y, "@Mboya_Jeffers",
+             fontsize=FONT_TINY, color=TEAL, va="top", ha="right")
 
-    fig.add_artist(plt.Line2D([0.02, 0.98], [0.105, 0.105],
+    fig.add_artist(plt.Line2D([MARGIN_LEFT, MARGIN_RIGHT], [FOOTER_LINE_Y, FOOTER_LINE_Y],
                               transform=fig.transFigure,
-                              color="#1a2f4a", linewidth=0.8))
+                              color=PANEL_BORDER, linewidth=0.8))
+
+    detect_and_fix_overlaps(fig)
 
     plt.savefig(OUT_PATH, dpi=300, bbox_inches="tight",
                 facecolor=BG, edgecolor="none")
@@ -375,9 +404,16 @@ def main():
     print("Fetching FRED: 10Y Treasury yield...")
     ten_yr, ten_yr_date = fetch_fred_latest("DGS10", start="2025-01-01")
 
+    print("Fetching FRED: Yield curve (T10Y2Y)...")
+    t10y2y_val, _ = fetch_fred_latest("T10Y2Y", start="2025-01-01")
+
+    print("Fetching FRED: IG credit spread (BAMLC0A0CM)...")
+    ig_spread_val, _ = fetch_fred_latest("BAMLC0A0CM", start="2025-01-01")
+
     print("Drawing card...")
     draw_card(sector_data, spy_price, spy_ytd, vix, fed_funds, cpi_yoy, ten_yr,
-              fed_date, cpi_date, ten_yr_date)
+              fed_date, cpi_date, ten_yr_date,
+              t10y2y=t10y2y_val, ig_spread=ig_spread_val)
     print("Done.")
 
 

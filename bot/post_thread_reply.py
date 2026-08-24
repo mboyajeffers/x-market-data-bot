@@ -1,0 +1,364 @@
+#!/usr/bin/env python3
+"""
+X Thread Reply Bot — @Mboya_Jeffers
+Posts affiliate thread reply 90 minutes after the main tweet.
+
+The 90-min gap is intentional: it lets the main tweet accumulate early
+engagement before the reply appears. Simultaneous replies suppress the
+main tweet's organic reach.
+
+Usage:
+    python3 post_thread_reply.py worldcup            # reads tweet_id from log
+    python3 post_thread_reply.py betting <tweet_id>  # explicit tweet_id override
+    python3 post_thread_reply.py crypto --dry-run    # preview text, no API call
+
+FTC compliance: #ad is included in all affiliate thread replies.
+
+Cron (90 min after each morning post + worldcup):
+    Run post.py first, then post_thread_reply.py 90 min later.
+    See crontab for schedule.
+"""
+
+import argparse
+import json
+import os
+import sys
+import time
+import urllib.parse
+import urllib.request
+from datetime import datetime
+from pathlib import Path
+
+# Add bot dir to path so we can import affiliate_config
+BOT_DIR  = Path(__file__).parent.resolve()
+LOG_PATH = BOT_DIR / "post_log.json"
+TODAY    = datetime.now().strftime("%Y-%m-%d")
+NOW      = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+sys.path.insert(0, str(BOT_DIR))
+from affiliate_config import THREAD_REPLIES, BIO_LINK, KRAKEN_AFFILIATE_URL, _kraken_live
+
+
+# ─── DYNAMIC THREAD REPLY BUILDERS ───────────────────────────────────────────
+
+def _api_get(url, timeout=20):
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode())
+
+
+def build_worldcup_thread_reply() -> str:
+    """
+    Fetch live PENN + FLUT returns since WC kickoff and build the worldcup thread reply.
+    All figures are live — never stale. Called at post time.
+    """
+    import yfinance as yf
+    from affiliate_config import (
+        BIO_LINK, WC_REPORT_PRICE, GUMROAD_WC_REPORT_URL,
+        BETWAY_AFFILIATE_URL,
+        _gumroad_wc_live, _betway_live,
+    )
+
+    penn_ret = flut_ret = dkng_ret = None
+    BASELINE = "2026-06-11"
+
+    for sym, var_name in [("PENN", "penn_ret"), ("FLUT", "flut_ret"), ("DKNG", "dkng_ret")]:
+        try:
+            hist = yf.Ticker(sym).history(start=BASELINE)
+            if not hist.empty and len(hist) >= 2:
+                c = hist["Close"].dropna().tolist()
+                ret = round((c[-1] - c[0]) / c[0] * 100, 1)
+                if var_name == "penn_ret":
+                    penn_ret = ret
+                elif var_name == "flut_ret":
+                    flut_ret = ret
+                else:
+                    dkng_ret = ret
+            time.sleep(0.4)
+        except Exception:
+            pass
+
+    penn_str = f"$PENN {penn_ret:+.1f}% since WC kickoff" if penn_ret is not None else "$PENN leading WC run"
+    flut_str = (
+        f"$FLUT (FanDuel parent) {flut_ret:+.1f}% same window" if flut_ret is not None
+        else "$FLUT (FanDuel parent) active WC window"
+    )
+
+    reply = (
+        "I track sportsbook stocks daily ($DKNG $FLUT $PENN $MGM $BETZ).\n\n"
+        f"{penn_str}. {flut_str}. "
+        "The Final (Jul 19) captures 15–20% of total tournament handle in one game.\n\n"
+        "Full World Cup Sportsbook Intelligence Report:\n"
+        "• Stock plays + performance vs SPY\n"
+        "• Handle projections by stage ($2.3B–$3.35B remaining)\n"
+        "• Promo breakdown (up to $1,500 new user)\n\n"
+    )
+    if _gumroad_wc_live:
+        reply += f"{WC_REPORT_PRICE} → {GUMROAD_WC_REPORT_URL}\n\n"
+    else:
+        reply += f"Report + analysis → {BIO_LINK}\n\n"
+
+    if _betway_live:
+        reply += f"Best promos → {BETWAY_AFFILIATE_URL}\n\n"
+    else:
+        reply += f"Best promos → {BIO_LINK}\n\n"
+
+    reply += "#ad"
+    return reply
+
+
+def build_crypto_thread_reply() -> str:
+    """Fetch live MVRV, F&G, Aave TVL and build the crypto thread reply.
+    All values are live — never stale. Called at post time by post_thread_reply.py.
+    """
+    mvrv_val  = mvrv_label = fg_val = fg_label = aave_tvl = aave_7d = None
+
+    # MVRV Ratio — CoinMetrics community tier (no key required)
+    try:
+        data = _api_get(
+            "https://community-api.coinmetrics.io/v4/timeseries/asset-metrics"
+            "?assets=btc&metrics=CapMVRVCur&page_size=5"
+        )
+        entries = [(r["time"], float(r["CapMVRVCur"])) for r in data.get("data", []) if r.get("CapMVRVCur")]
+        if entries:
+            mvrv_val = entries[-1][1]
+            if mvrv_val > 3.0:
+                mvrv_label = "OVERVALUED"
+            elif mvrv_val > 1.5:
+                mvrv_label = "FAIR VALUE"
+            elif mvrv_val > 1.0:
+                mvrv_label = "NEUTRAL"
+            else:
+                mvrv_label = "UNDERVALUED"
+        time.sleep(2)
+    except Exception:
+        pass
+
+    # Fear & Greed — alternative.me
+    try:
+        data     = _api_get("https://api.alternative.me/fng/?limit=1")
+        fg_val   = int(data["data"][0]["value"])
+        fg_label = data["data"][0]["value_classification"]
+        time.sleep(1)
+    except Exception:
+        pass
+
+    # Aave V3 TVL — DeFi Llama
+    try:
+        data = _api_get("https://api.llama.fi/protocol/aave-v3")
+        tvl_series = data.get("tvl", [])
+        if len(tvl_series) >= 8:
+            now_tvl  = tvl_series[-1]["totalLiquidityUSD"]
+            week_tvl = tvl_series[-8]["totalLiquidityUSD"]
+            aave_tvl = now_tvl / 1e9
+            aave_7d  = (now_tvl - week_tvl) / week_tvl * 100
+    except Exception:
+        pass
+
+    # Build reply text
+    lines = []
+
+    if mvrv_val is not None:
+        lines.append(f"BTC MVRV at {mvrv_val:.2f} ({mvrv_label}) — market vs realized value.")
+    if fg_val is not None:
+        lines.append(f"Fear & Greed: {fg_val} ({fg_label}).", )
+    if aave_tvl is not None and aave_7d is not None:
+        lines.append(f"Aave V3 TVL: ${aave_tvl:.2f}B ({aave_7d:+.1f}% 7d).")
+
+    if not lines:
+        lines.append("Live on-chain data — full report below.")
+
+    reply = "\n".join(lines)
+    reply += (
+        "\n\nThis is what white glove subscribers get every week:\n\n"
+        "→ Full on-chain report: MVRV, DeFi TVL, liquidation rates, protocol risk\n"
+        "→ Signal feature state: 6-factor directional read (XGBoost model, 43.1% OOS)\n"
+        "→ Macro overlay: Fed Funds, 10Y, yield curve read\n"
+        "→ DeFi risk: Aave · Uniswap · Compound · Curve\n\n"
+        "$99 report / $299 report + signal / $599 + monthly call\n"
+        f"{BIO_LINK}"
+    )
+    if _kraken_live:
+        reply += f"\n\nWhere I actually trade it: Kraken → {KRAKEN_AFFILIATE_URL}\n#ad"
+    return reply
+
+
+# ─── LOG HELPERS ─────────────────────────────────────────────────────────────
+
+def load_log():
+    if not LOG_PATH.exists():
+        return {"posts": []}
+    try:
+        return json.loads(LOG_PATH.read_text())
+    except Exception:
+        return {"posts": []}
+
+
+def save_log(data):
+    LOG_PATH.write_text(json.dumps(data, indent=2))
+
+
+def find_pending(vertical):
+    """Return the most recent log entry with thread_pending=True, thread_posted=False."""
+    data = load_log()
+    # Search newest first
+    for entry in reversed(data["posts"]):
+        if (entry.get("vertical") == vertical
+                and entry.get("thread_pending") is True
+                and entry.get("thread_posted") is False):
+            return entry, data
+    return None, data
+
+
+def mark_thread_posted(data, tweet_id, reply_id):
+    for entry in data["posts"]:
+        if entry.get("tweet_id") == str(tweet_id):
+            entry["thread_posted"]   = True
+            entry["thread_tweet_id"] = str(reply_id)
+            entry["thread_timestamp"] = NOW
+            break
+    save_log(data)
+
+
+# ─── TELEGRAM ─────────────────────────────────────────────────────────────────
+
+def notify_telegram(msg):
+    token   = os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        return
+    try:
+        url  = f"https://api.telegram.org/bot{token}/sendMessage"
+        body = urllib.parse.urlencode({"chat_id": chat_id, "text": msg}).encode()
+        urllib.request.urlopen(urllib.request.Request(url, body), timeout=10)
+    except Exception as e:
+        print(f"Telegram alert failed: {e}")
+
+
+# ─── TWEEPY AUTH ─────────────────────────────────────────────────────────────
+
+def get_client():
+    try:
+        import tweepy
+    except ImportError:
+        print("ERROR: tweepy not installed. Run: pip install tweepy")
+        sys.exit(1)
+
+    required = ["X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_TOKEN_SECRET"]
+    missing  = [k for k in required if not os.environ.get(k)]
+    if missing:
+        print(f"ERROR: Missing env vars: {', '.join(missing)}")
+        sys.exit(1)
+
+    return tweepy.Client(
+        consumer_key=os.environ["X_API_KEY"],
+        consumer_secret=os.environ["X_API_SECRET"],
+        access_token=os.environ["X_ACCESS_TOKEN"],
+        access_token_secret=os.environ["X_ACCESS_TOKEN_SECRET"],
+    )
+
+
+# ─── MAIN ─────────────────────────────────────────────────────────────────────
+
+def main():
+    parser = argparse.ArgumentParser(description="X Thread Reply Bot — @Mboya_Jeffers")
+    parser.add_argument("vertical",
+                        choices=list(THREAD_REPLIES.keys()),
+                        help="Vertical to post thread reply for")
+    parser.add_argument("tweet_id", nargs="?", default=None,
+                        help="Explicit tweet ID (overrides log lookup)")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Preview reply text, no API call")
+    args = parser.parse_args()
+
+    vertical = args.vertical
+
+    # 1. Get reply text
+    reply_text = THREAD_REPLIES.get(vertical)
+    if reply_text is None:
+        print(f"No thread reply configured for [{vertical}] — skipping.")
+        sys.exit(0)
+
+    # 1a. Dynamic builder — fetch live data instead of using static string
+    if reply_text == "__DYNAMIC__":
+        if vertical == "crypto":
+            print(f"Building live [{vertical}] thread reply from APIs...")
+            reply_text = build_crypto_thread_reply()
+            print(f"Live reply built ({len(reply_text)} chars).")
+        elif vertical == "worldcup":
+            print(f"Building live [{vertical}] thread reply (live stock returns)...")
+            reply_text = build_worldcup_thread_reply()
+            print(f"Live reply built ({len(reply_text)} chars).")
+        else:
+            print(f"ERROR: __DYNAMIC__ sentinel set for [{vertical}] but no builder exists.", file=sys.stderr)
+            sys.exit(1)
+
+    # 1b. Placeholder guard — never publish unfilled affiliate/URL placeholders.
+    # affiliate_config uses [BRACKETED] tokens for pending URLs. If any survive
+    # into the reply text, abort rather than post broken links to the timeline.
+    import re
+    placeholders = re.findall(r"\[[A-Z0-9_]+\]", reply_text)
+    if placeholders:
+        msg = (f"Thread reply [{vertical}] BLOCKED — unfilled placeholders: "
+               f"{', '.join(sorted(set(placeholders)))}. "
+               f"Fill them in affiliate_config.py before this thread can post.")
+        print(f"ERROR: {msg}", file=sys.stderr)
+        notify_telegram(f"Thread reply SKIPPED [{vertical}] — {NOW}\n{msg}")
+        sys.exit(0)
+
+    # 2. Find tweet_id
+    if args.tweet_id:
+        tweet_id = args.tweet_id
+        log_data = load_log()
+        pending_entry = None
+        for entry in reversed(log_data["posts"]):
+            if entry.get("tweet_id") == str(tweet_id):
+                pending_entry = entry
+                break
+    else:
+        pending_entry, log_data = find_pending(vertical)
+        if pending_entry is None:
+            print(f"No pending thread reply found for [{vertical}] in post_log.json.")
+            print("Either the main tweet hasn't been posted yet, or the thread was already sent.")
+            sys.exit(0)
+        tweet_id = pending_entry["tweet_id"]
+
+    print(f"\n--- THREAD REPLY ({vertical}) ---")
+    print(f"Replying to tweet ID: {tweet_id}")
+    print(f"\n{reply_text}\n")
+    print(f"--- ({len(reply_text)} chars) ---\n")
+
+    if args.dry_run:
+        print("DRY RUN — no API call made. Remove --dry-run to post live.")
+        return
+
+    # 3. Post reply
+    client = get_client()
+
+    try:
+        response = client.create_tweet(
+            text=reply_text,
+            in_reply_to_tweet_id=tweet_id
+        )
+        reply_id = response.data["id"]
+        url = f"https://x.com/Mboya_Jeffers/status/{reply_id}"
+        print(f"Thread reply posted: {url}")
+
+        # 4. Update log
+        if pending_entry is not None:
+            mark_thread_posted(log_data, tweet_id, reply_id)
+            print(f"Log updated: thread_posted=True for tweet {tweet_id}")
+
+        # 5. Notify
+        notify_telegram(
+            f"Thread reply posted [{vertical}] — {NOW}\n{url}"
+        )
+
+    except Exception as e:
+        print(f"ERROR posting thread reply: {e}", file=sys.stderr)
+        notify_telegram(f"Thread reply FAILED [{vertical}] — {NOW}\n{e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

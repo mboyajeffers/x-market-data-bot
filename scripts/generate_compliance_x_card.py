@@ -12,7 +12,7 @@ import time
 import urllib.request
 import urllib.error
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import matplotlib
@@ -21,26 +21,38 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.patches import FancyBboxPatch
 
+from card_spec import (
+    FONT_TITLE, FONT_HEADLINE, FONT_STAT, FONT_HANDLE,
+    FONT_LABEL, FONT_VALUE, FONT_SMALL, FONT_TINY,
+    GS_TOP, GS_BOTTOM, GS_LEFT, GS_RIGHT, GS_WSPACE,
+    HDR_TITLE_Y, HDR_HEADLINE_Y, HDR_STAT_Y, HDR_HANDLE_Y,
+    FOOTER_Y, FOOTER_LINE_Y, MARGIN_LEFT, MARGIN_RIGHT,
+)
+from card_validator import detect_and_fix_overlaps
+
+
 # ─── PATHS ────────────────────────────────────────────────────────────────────
 
 OUT_DIR = Path(__file__).parent.parent / "cards"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
+_now_utc  = datetime.now(timezone.utc)
 TODAY = datetime.now().strftime("%Y-%m-%d")
 TIMESTAMP = datetime.now().strftime("%Y-%m-%d %H:%M UTC")
 OUT_PATH = OUT_DIR / f"compliance_x_card_{TODAY}.png"
 
 # ─── COLORS ───────────────────────────────────────────────────────────────────
 
-BG      = "#08082a"
-INDIGO  = "#4f46e5"
-PURPLE  = "#7c3aed"
-GREEN   = "#22c55e"
-RED     = "#ef4444"
-AMBER   = "#f59e0b"
-GREY    = "#6b7280"
-WHITE   = "#f1f5f9"
-DIM     = "#94a3b8"
-CARD_BG = "#0f0f38"
+BG           = "#0a0e14"   # site --bg-primary
+INDIGO       = "#4f46e5"   # compliance primary (CLAUDE.md)
+PURPLE       = "#818cf8"   # compliance accent: bright indigo on dark bg
+GREEN        = "#22c55e"
+RED          = "#ef4444"
+AMBER        = "#f59e0b"
+GREY         = "#64748b"   # site --text-muted
+WHITE        = "#f1f5f9"   # site --text-primary
+DIM          = "#94a3b8"   # site --text-secondary
+CARD_BG      = "#1a2130"   # site --bg-card
+PANEL_BORDER = "#2a3441"   # site --border-color
 
 # ─── EDGAR API ────────────────────────────────────────────────────────────────
 
@@ -49,7 +61,7 @@ EDGAR_FULL = "https://efts.sec.gov/LATEST/search-index?q=%22administrative+proce
 EDGAR_SEARCH = "https://efts.sec.gov/LATEST/search-index?q={query}&forms={forms}&dateRange=custom&startdt={start}&enddt={end}"
 
 HEADERS = {
-    "User-Agent": "CleanMetrics data-pipeline contact@cleanmetrics.io",
+    "User-Agent": "MarketDataBot data-pipeline",
     "Accept": "application/json",
 }
 
@@ -189,13 +201,18 @@ def draw_card(enforcement, filings, start_30d, end_str):
     plt.style.use("dark_background")
     fig = plt.figure(figsize=(12, 6.75), dpi=300, facecolor=BG)
 
+    # Top accent stripe
+    fig.add_artist(plt.Line2D([0, 1], [0.993, 0.993],
+                              transform=fig.transFigure, color=INDIGO, linewidth=2.5,
+                              solid_capstyle="butt", zorder=10))
+
     gs = gridspec.GridSpec(
         1, 3,
         figure=fig,
         width_ratios=[3.5, 3.5, 3],
         left=0.02, right=0.98,
-        top=0.82, bottom=0.13,
-        wspace=0.32,
+        top=GS_TOP, bottom=GS_BOTTOM,
+        wspace=GS_WSPACE,
     )
 
     ax_bars  = fig.add_subplot(gs[0, 0])
@@ -205,7 +222,7 @@ def draw_card(enforcement, filings, start_30d, end_str):
     for ax in [ax_bars, ax_table, ax_stats]:
         ax.set_facecolor(CARD_BG)
         for spine in ax.spines.values():
-            spine.set_edgecolor("#1a1a4a")
+            spine.set_edgecolor(PANEL_BORDER)
 
     total_actions = enforcement.get("8k_investigation_30d", 0) + enforcement.get("8k_subpoena_30d", 0)
     s1_30d   = enforcement.get("s1_filings_30d", 0)
@@ -224,19 +241,19 @@ def draw_card(enforcement, filings, start_30d, end_str):
         headline = f"EDGAR (30d): {total_actions} enforcement-related  |  {s1_30d} S-1 registrations"
 
     # ── HEADER ────────────────────────────────────────────────────────────────
-    fig.text(0.02, 0.93, f"SEC Enforcement Tracker — {TODAY}",
-             fontsize=14, fontweight="bold", color=WHITE, va="top")
-    fig.text(0.02, 0.88, headline,
-             fontsize=9, color=INDIGO, va="top")
-    fig.text(0.98, 0.92,
+    fig.text(MARGIN_LEFT, HDR_TITLE_Y, f"SEC Enforcement Tracker — {TODAY}",
+             fontsize=FONT_TITLE, fontweight="bold", color=WHITE, va="top")
+    fig.text(MARGIN_LEFT, HDR_HEADLINE_Y, headline,
+             fontsize=FONT_HEADLINE, color=INDIGO, va="top")
+    fig.text(MARGIN_RIGHT, HDR_STAT_Y,
              f"Enforcement-related 8-Ks (30d): {total_actions}",
-             fontsize=9, color=INDIGO, va="top", ha="right")
-    fig.text(0.98, 0.86, "@Mboya_Jeffers",
-             fontsize=8.5, color=INDIGO, va="top", ha="right", fontweight="bold")
+             fontsize=FONT_HEADLINE, color=INDIGO, va="top", ha="right")
+    fig.text(MARGIN_RIGHT, HDR_HANDLE_Y, "@Mboya_Jeffers",
+             fontsize=FONT_HANDLE, color=INDIGO, va="top", ha="right", fontweight="bold")
 
     # ── LEFT: ACTIVITY BAR CHART ──────────────────────────────────────────────
     ax_bars.axis("off")
-    ax_bars.set_title("EDGAR Filing Activity (30d)", fontsize=9, color=DIM, pad=6)
+    ax_bars.set_title("EDGAR Filing Activity (30d)", fontsize=FONT_HEADLINE, color=DIM, pad=6)
 
     categories = [
         ("10-K Annual Reports", enforcement.get("10k_filings_30d", 0), INDIGO),
@@ -258,7 +275,7 @@ def draw_card(enforcement, filings, start_30d, end_str):
         ax_bars.add_patch(FancyBboxPatch(
             (bar_x_start, y), bar_area_w, bar_h,
             boxstyle="round,pad=0.01",
-            facecolor="#1a1a4a", edgecolor="none",
+            facecolor=PANEL_BORDER, edgecolor="none",
             transform=ax_bars.transAxes, clip_on=True
         ))
         # Value bar
@@ -271,27 +288,27 @@ def draw_card(enforcement, filings, start_30d, end_str):
             ))
         # Label above
         ax_bars.text(bar_x_start, y + bar_h + 0.025, label,
-                     fontsize=7.5, color=DIM,
+                     fontsize=FONT_LABEL, color=DIM,
                      transform=ax_bars.transAxes, va="bottom")
         # Count label
         ax_bars.text(bar_x_start + bar_area_w + 0.02, y + bar_h / 2,
-                     str(val), fontsize=9, color=color, fontweight="bold",
+                     str(val), fontsize=FONT_HEADLINE, color=color, fontweight="bold",
                      transform=ax_bars.transAxes, va="center")
 
     ax_bars.text(0.5, 0.02, f"{start_30d} to {end_str}",
-                 fontsize=6, color=GREY, transform=ax_bars.transAxes,
+                 fontsize=FONT_TINY, color=GREY, transform=ax_bars.transAxes,
                  ha="center", style="italic")
 
     # ── CENTER: RECENT FILING TABLE ────────────────────────────────────────────
     ax_table.axis("off")
-    ax_table.set_title("Recent 8-K: SEC Investigation", fontsize=9, color=DIM, pad=6)
+    ax_table.set_title("Recent 8-K: SEC Investigation", fontsize=FONT_HEADLINE, color=DIM, pad=6)
 
     if filings:
         col_x = [0.03, 0.70, 0.95]
         y_h = 0.88
-        ax_table.text(col_x[0], y_h, "Entity", fontsize=7.5, color=INDIGO,
+        ax_table.text(col_x[0], y_h, "Entity", fontsize=FONT_LABEL, color=INDIGO,
                       fontweight="bold", transform=ax_table.transAxes)
-        ax_table.text(col_x[1], y_h, "Filed", fontsize=7.5, color=INDIGO,
+        ax_table.text(col_x[1], y_h, "Filed", fontsize=FONT_LABEL, color=INDIGO,
                       fontweight="bold", transform=ax_table.transAxes)
 
         row_h = 0.14
@@ -303,23 +320,23 @@ def draw_card(enforcement, filings, start_30d, end_str):
                                   facecolor=bg, edgecolor="none",
                                   transform=ax_table.transAxes, clip_on=False)
             ax_table.add_patch(rect)
-            ax_table.text(col_x[0], y + 0.045, f["entity"], fontsize=7.5, color=WHITE,
+            ax_table.text(col_x[0], y + 0.045, f["entity"], fontsize=FONT_LABEL, color=WHITE,
                           transform=ax_table.transAxes, va="center")
-            ax_table.text(col_x[1], y + 0.045, f["date"], fontsize=7, color=DIM,
+            ax_table.text(col_x[1], y + 0.045, f["date"], fontsize=FONT_TINY, color=DIM,
                           transform=ax_table.transAxes, va="center")
             y -= row_h
     else:
         ax_table.text(0.5, 0.5, "No recent filings\nmatched query",
-                      fontsize=9, color=DIM, transform=ax_table.transAxes,
+                      fontsize=FONT_HEADLINE, color=DIM, transform=ax_table.transAxes,
                       ha="center", va="center")
 
     ax_table.text(0.5, 0.02, "EDGAR EFTS full-text search  |  Public filings only",
-                  fontsize=6, color=GREY, transform=ax_table.transAxes,
+                  fontsize=FONT_TINY, color=GREY, transform=ax_table.transAxes,
                   ha="center", style="italic")
 
     # ── RIGHT: ENFORCEMENT SUMMARY ─────────────────────────────────────────────
     ax_stats.axis("off")
-    ax_stats.set_title("Enforcement Summary", fontsize=9, color=DIM, pad=6)
+    ax_stats.set_title("Enforcement Summary", fontsize=FONT_HEADLINE, color=DIM, pad=6)
 
     enf_rate_7d = enforcement.get("8k_enforcement_7d", 0)
     total_8k_7d = enforcement.get("8k_total_7d", 0)
@@ -345,14 +362,14 @@ def draw_card(enforcement, filings, start_30d, end_str):
             except ValueError:
                 pass
 
-        ax_stats.text(0.06, y2, label, fontsize=7.5, color=DIM,
+        ax_stats.text(0.06, y2, label, fontsize=FONT_LABEL, color=DIM,
                       transform=ax_stats.transAxes, va="top")
-        ax_stats.text(0.94, y2, val, fontsize=8.5, color=val_color,
+        ax_stats.text(0.94, y2, val, fontsize=FONT_HANDLE, color=val_color,
                       fontweight="bold", transform=ax_stats.transAxes,
                       ha="right", va="top")
         ax_stats.add_artist(plt.Line2D(
             [0.03, 0.97], [y2 - 0.015, y2 - 0.015],
-            transform=ax_stats.transAxes, color="#1a1a4a", linewidth=0.5,
+            transform=ax_stats.transAxes, color=PANEL_BORDER, linewidth=0.5,
         ))
         y2 -= row_h2
 
@@ -364,24 +381,26 @@ def draw_card(enforcement, filings, start_30d, end_str):
     y2 -= 0.05
     rect = FancyBboxPatch((0.03, y2 - 0.06), 0.94, 0.18,
                           boxstyle="round,pad=0.02",
-                          facecolor="#1a1a4a", edgecolor=risk_color, linewidth=1,
+                          facecolor=PANEL_BORDER, edgecolor=risk_color, linewidth=1,
                           transform=ax_stats.transAxes, clip_on=False)
     ax_stats.add_patch(rect)
     ax_stats.text(0.5, y2 + 0.04, f"Enforcement Activity: {risk_level}",
-                  fontsize=9, color=risk_color, fontweight="bold",
+                  fontsize=FONT_HEADLINE, color=risk_color, fontweight="bold",
                   transform=ax_stats.transAxes, ha="center", va="center")
 
     # ── FOOTER ────────────────────────────────────────────────────────────────
-    fig.text(0.02, 0.06,
+    fig.text(MARGIN_LEFT, FOOTER_Y,
              f"Source: SEC EDGAR (public filings)  |  Generated: {TIMESTAMP}",
-             fontsize=7.5, color=GREY, va="top")
-    fig.text(0.98, 0.06, "github.com/mboyajeffers/data-intelligence-platform",
-             fontsize=7.5, color=INDIGO, va="top", ha="right")
+             fontsize=FONT_SMALL, color=GREY, va="top")
+    fig.text(MARGIN_RIGHT, FOOTER_Y, "@Mboya_Jeffers",
+             fontsize=FONT_SMALL, color=INDIGO, va="top", ha="right")
 
-    fig.add_artist(plt.Line2D([0.02, 0.98], [0.105, 0.105],
+    fig.add_artist(plt.Line2D([MARGIN_LEFT, MARGIN_RIGHT], [FOOTER_LINE_Y, FOOTER_LINE_Y],
                               transform=fig.transFigure,
-                              color="#1a1a4a", linewidth=0.8))
+                              color=PANEL_BORDER, linewidth=0.8))
 
+    
+    detect_and_fix_overlaps(fig)
     plt.savefig(OUT_PATH, dpi=300, bbox_inches="tight",
                 facecolor=BG, edgecolor="none")
     plt.close()

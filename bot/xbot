@@ -1,0 +1,213 @@
+#!/usr/bin/env python3
+"""
+xbot — approval-gated CLI for the X bot (@Mboya_Jeffers).
+
+Workflow:
+    xbot preview [verticals...]   Generate + verify + stage (default: all 13). No posting.
+    xbot show                     Reprint the current staging summary + captions.
+    xbot post all                 Post every staged PASS/WARN not yet posted.
+    xbot post <vertical>          Post one staged vertical.
+    xbot html                     Render an HTML preview page on demand.
+    xbot clear                    Wipe staging.json.
+
+Posting is frozen (WYSIWYG): it sends exactly the card + caption that was
+previewed. If a staged item is older than 30 minutes its data may be stale —
+post refuses and tells you to re-preview.
+
+Credentials must be loaded first:  source ~/.x_bot_env
+"""
+
+import sys
+from datetime import datetime
+from pathlib import Path
+
+BOT_DIR = Path(__file__).parent.resolve()
+sys.path.insert(0, str(BOT_DIR))
+
+import preview as preview_mod
+import verify
+from preview import load_staging, save_staging, print_summary
+
+STALE_MINUTES = 30
+
+
+# ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+def _find(data, vertical):
+    return next((p for p in data["posts"] if p["vertical"] == vertical), None)
+
+
+def _age_minutes(entry):
+    try:
+        t = datetime.fromisoformat(entry["preview_time"])
+    except Exception:
+        return None
+    return (datetime.now() - t).total_seconds() / 60.0
+
+
+def _is_stale(entry, minutes=STALE_MINUTES):
+    age = _age_minutes(entry)
+    return age is not None and age > minutes
+
+
+def _postable(entry):
+    return (entry["verification"]["status"] in (verify.PASS, verify.WARN)
+            and not entry["posted"])
+
+
+# ─── COMMANDS ─────────────────────────────────────────────────────────────────
+
+def cmd_preview(args):
+    verticals = args if args else None
+    preview_mod.preview(verticals)
+
+
+def cmd_show(args):
+    data = load_staging()
+    if not data["posts"]:
+        print("Nothing staged. Run:  xbot preview")
+        return
+    print_summary(data)
+    print("\n--- CAPTIONS ---")
+    for p in sorted(data["posts"], key=lambda x: x["vertical"]):
+        st = p["verification"]["status"]
+        age = _age_minutes(p)
+        age_s = f"{age:.0f} min ago" if age is not None else "?"
+        print(f"\n[{st}] {p['vertical']}  ({p['char_count']} chars · {age_s})")
+        print(p["caption"] or "(no caption)")
+
+
+def _post_entry(data, entry):
+    """Publish a single frozen staging entry. Returns True on success."""
+    from post import publish
+
+    v = entry["vertical"]
+    if entry["posted"]:
+        print(f"{v}: already posted (tweet {entry['posted_tweet_id']}) — skipping")
+        return False
+    if entry["verification"]["status"] == verify.FAIL:
+        print(f"{v}: BLOCKED — verification FAILED. Fix and re-preview.")
+        return False
+    if _is_stale(entry):
+        age = _age_minutes(entry)
+        print(f"{v}: STALE — previewed {age:.0f} min ago (>{STALE_MINUTES}). "
+              f"Data may be outdated. Re-run:  xbot preview {v}")
+        return False
+
+    tweet_id = publish(v, entry["card_path"], entry["caption"], dry_run=False)
+    if tweet_id:
+        entry["posted"] = True
+        entry["approved"] = True
+        entry["posted_tweet_id"] = str(tweet_id)
+        save_staging(data)
+        print(f"{v}: posted → https://x.com/Mboya_Jeffers/status/{tweet_id}")
+        return True
+    return False
+
+
+def cmd_post(args):
+    if not args:
+        print("Usage: xbot post all | xbot post <vertical>")
+        return
+    data = load_staging()
+    if not data["posts"]:
+        print("Nothing staged. Run:  xbot preview")
+        return
+
+    target = args[0]
+    dry_run = "--dry-run" in args
+
+    if target == "all":
+        entries = [p for p in data["posts"] if _postable(p)]
+        if not entries:
+            print("No postable staged items (all posted, failed, or empty).")
+            return
+        print(f"Posting {len(entries)}: {', '.join(e['vertical'] for e in entries)}")
+        if dry_run:
+            for e in entries:
+                from post import publish
+                publish(e["vertical"], e["card_path"], e["caption"], dry_run=True)
+            return
+        posted = sum(_post_entry(data, e) for e in entries)
+        print(f"\nDone — {posted}/{len(entries)} posted.")
+    else:
+        entry = _find(data, target)
+        if not entry:
+            print(f"{target}: not staged. Run:  xbot preview {target}")
+            return
+        if dry_run:
+            from post import publish
+            publish(target, entry["card_path"], entry["caption"], dry_run=True)
+            return
+        _post_entry(data, entry)
+
+
+def cmd_html(args):
+    """Render an HTML preview page on demand (no auto-open per user preference)."""
+    data = load_staging()
+    if not data["posts"]:
+        print("Nothing staged. Run:  xbot preview")
+        return
+    out = BOT_DIR.parent / "preview" / f"staged_preview_{datetime.now():%Y-%m-%d}.html"
+    out.parent.mkdir(parents=True, exist_ok=True)
+
+    cards = []
+    for p in sorted(data["posts"], key=lambda x: x["vertical"]):
+        st = p["verification"]["status"]
+        color = {"PASS": "#22c55e", "WARN": "#f59e0b", "FAIL": "#ef4444"}.get(st, "#94a3b8")
+        flags = "".join(
+            f"<li>{c['status']} — {c['layer']}.{c['name']}: {c['detail']}</li>"
+            for c in p["verification"]["checks"] if c["status"] != "PASS"
+        ) or "<li>all checks passed</li>"
+        caption_html = (p["caption"] or "").replace("\n", "<br>")
+        card_uri = f"file://{p['card_path']}" if p["card_path"] else ""
+        cards.append(f"""
+        <div class="card">
+          <h2>{p['vertical']} <span style="color:{color}">[{st}]</span>
+              <small>{p['char_count']} chars</small></h2>
+          <img src="{card_uri}" alt="{p['vertical']} card">
+          <pre>{caption_html}</pre>
+          <ul>{flags}</ul>
+        </div>""")
+
+    html = f"""<!doctype html><html><head><meta charset="utf-8">
+    <title>X Staged Preview — {datetime.now():%Y-%m-%d}</title>
+    <style>
+      body{{background:#0a0e14;color:#f1f5f9;font-family:-apple-system,sans-serif;margin:24px}}
+      .card{{background:#1a2130;border:1px solid #2a3441;border-radius:12px;
+             padding:16px;margin-bottom:24px;max-width:760px}}
+      img{{max-width:100%;border-radius:8px;border:1px solid #2a3441}}
+      pre{{white-space:pre-wrap;background:#121820;padding:12px;border-radius:8px;font-size:14px}}
+      small{{color:#94a3b8;font-weight:normal}} ul{{color:#94a3b8;font-size:13px}}
+    </style></head><body>
+    <h1>Staged X Posts — {datetime.now():%Y-%m-%d %H:%M}</h1>
+    {''.join(cards)}
+    </body></html>"""
+    out.write_text(html, encoding="utf-8")
+    print(f"HTML preview written: {out}")
+    print(f"Open with:  open '{out}'")
+
+
+def cmd_clear(args):
+    save_staging({"posts": []})
+    print("Staging cleared.")
+
+
+COMMANDS = {
+    "preview": cmd_preview,
+    "show":    cmd_show,
+    "post":    cmd_post,
+    "html":    cmd_html,
+    "clear":   cmd_clear,
+}
+
+
+def main():
+    if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
+        print(__doc__)
+        sys.exit(0 if len(sys.argv) < 2 else 1)
+    COMMANDS[sys.argv[1]](sys.argv[2:])
+
+
+if __name__ == "__main__":
+    main()

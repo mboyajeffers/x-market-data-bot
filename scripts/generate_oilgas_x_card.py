@@ -12,7 +12,7 @@ import io
 import subprocess
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import matplotlib
@@ -22,26 +22,38 @@ import matplotlib.gridspec as gridspec
 from matplotlib.patches import FancyBboxPatch
 import yfinance as yf
 
+from card_spec import (
+    FONT_TITLE, FONT_HEADLINE, FONT_STAT, FONT_HANDLE,
+    FONT_LABEL, FONT_VALUE, FONT_SMALL, FONT_TINY,
+    GS_TOP, GS_BOTTOM, GS_LEFT, GS_RIGHT, GS_WSPACE,
+    HDR_TITLE_Y, HDR_HEADLINE_Y, HDR_STAT_Y, HDR_HANDLE_Y,
+    FOOTER_Y, FOOTER_LINE_Y, MARGIN_LEFT, MARGIN_RIGHT,
+)
+from card_validator import detect_and_fix_overlaps
+
+
 # ─── PATHS ────────────────────────────────────────────────────────────────────
 
 OUT_DIR = Path(__file__).parent.parent / "cards"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
-TODAY     = datetime.now().strftime("%Y-%m-%d")
-TIMESTAMP = datetime.now().strftime("%Y-%m-%d %H:%M UTC")
+_now_utc  = datetime.now(timezone.utc)
+TODAY     = _now_utc.strftime("%Y-%m-%d")
+TIMESTAMP = _now_utc.strftime("%Y-%m-%d %H:%M UTC")
 OUT_PATH  = OUT_DIR / f"oilgas_x_card_{TODAY}.png"
 
 # ─── COLORS ───────────────────────────────────────────────────────────────────
 
-BG      = "#150800"
-ACCENT  = "#c2410c"
-ORANGE  = "#ea580c"
-GREEN   = "#22c55e"
-RED     = "#ef4444"
-GREY    = "#6b7280"
-WHITE   = "#f1f5f9"
-DIM     = "#94a3b8"
-AMBER   = "#f59e0b"
-CARD_BG = "#1e0d00"
+BG           = "#0a0e14"   # site --bg-primary
+ACCENT       = "#c2410c"   # oil & gas accent (CLAUDE.md #c2410c burnt orange)
+ORANGE       = "#ea580c"   # secondary
+GREEN        = "#22c55e"
+RED          = "#ef4444"
+GREY         = "#64748b"   # site --text-muted
+WHITE        = "#f1f5f9"   # site --text-primary
+DIM          = "#94a3b8"   # site --text-secondary
+AMBER        = "#f59e0b"
+CARD_BG      = "#1a2130"   # site --bg-card
+PANEL_BORDER = "#2a3441"   # site --border-color
 
 # ─── ENERGY UNIVERSE ──────────────────────────────────────────────────────────
 
@@ -146,7 +158,8 @@ def fetch_fred_history(series_id, start="2025-01-01", max_retries=3):
 # ─── DRAW ─────────────────────────────────────────────────────────────────────
 
 def draw_card(equity_data, wti_val, wti_date, wti_chg, ng_val, ng_date, ng_chg,
-              wti_hist, ng_hist, cl_price, cl_ret5d, ng_price, ng_ret5d):
+              wti_hist, ng_hist, cl_price, cl_ret5d, ng_price, ng_ret5d,
+              cushing=None, ref_util=None):
 
     spread = cl_price / (ng_price * 6) if ng_price > 0 else 0
 
@@ -168,13 +181,18 @@ def draw_card(equity_data, wti_val, wti_date, wti_chg, ng_val, ng_date, ng_chg,
     plt.style.use("dark_background")
     fig = plt.figure(figsize=(12, 6.75), dpi=300, facecolor=BG)
 
+    # Top accent stripe
+    fig.add_artist(plt.Line2D([0, 1], [0.993, 0.993],
+                              transform=fig.transFigure, color=ACCENT, linewidth=2.5,
+                              solid_capstyle="butt", zorder=10))
+
     gs = gridspec.GridSpec(
         1, 3,
         figure=fig,
         width_ratios=[4.5, 2.5, 3],
         left=0.02, right=0.98,
-        top=0.82, bottom=0.13,
-        wspace=0.32,
+        top=GS_TOP, bottom=GS_BOTTOM,
+        wspace=GS_WSPACE,
     )
 
     ax_bars  = fig.add_subplot(gs[0, 0])
@@ -184,22 +202,22 @@ def draw_card(equity_data, wti_val, wti_date, wti_chg, ng_val, ng_date, ng_chg,
     for ax in [ax_bars, ax_price, ax_stats]:
         ax.set_facecolor(CARD_BG)
         for spine in ax.spines.values():
-            spine.set_edgecolor("#2a1200")
+            spine.set_edgecolor(PANEL_BORDER)
 
     # ── HEADER ────────────────────────────────────────────────────────────────
-    fig.text(0.02, 0.93, f"US Oil & Gas Weekly Snapshot — {TODAY}",
-             fontsize=14, fontweight="bold", color=WHITE, va="top")
-    fig.text(0.02, 0.88, headline,
-             fontsize=9, color=ACCENT, va="top")
+    fig.text(MARGIN_LEFT, HDR_TITLE_Y, f"US Oil & Gas Weekly Snapshot — {TODAY}",
+             fontsize=FONT_TITLE, fontweight="bold", color=WHITE, va="top")
+    fig.text(MARGIN_LEFT, HDR_HEADLINE_Y, headline,
+             fontsize=FONT_HEADLINE, color=ACCENT, va="top")
     cl_color = GREEN if cl_ret5d >= 0 else RED
     fig.text(
-        0.98, 0.92,
+        0.97, 0.93,
         f"WTI Futures: \\${cl_price:.2f}  ({cl_ret5d:+.1f}% 5d)  |  "
         f"NG Futures: \\${ng_price:.3f}  ({ng_ret5d:+.1f}% 5d)",
-        fontsize=8.5, color=cl_color, va="top", ha="right"
+        fontsize=FONT_HANDLE, color=cl_color, va="top", ha="right"
     )
-    fig.text(0.98, 0.86, "@Mboya_Jeffers",
-             fontsize=8.5, color=ACCENT, va="top", ha="right", fontweight="bold")
+    fig.text(MARGIN_RIGHT, HDR_HANDLE_Y, "@Mboya_Jeffers",
+             fontsize=FONT_HANDLE, color=ACCENT, va="top", ha="right", fontweight="bold")
 
     # ── LEFT: EQUITY BAR CHART ────────────────────────────────────────────────
     sorted_eq = sorted(equity_data, key=lambda x: x["ret5d"])
@@ -210,12 +228,12 @@ def draw_card(equity_data, wti_val, wti_date, wti_chg, ng_val, ng_date, ng_chg,
     y_pos = range(len(labels))
     ax_bars.barh(list(y_pos), values, color=colors, height=0.65, alpha=0.85)
     ax_bars.set_yticks(list(y_pos))
-    ax_bars.set_yticklabels(labels, fontsize=7.5, color=WHITE)
-    ax_bars.tick_params(axis="x", labelsize=7, colors=DIM)
+    ax_bars.set_yticklabels(labels, fontsize=FONT_LABEL, color=WHITE)
+    ax_bars.tick_params(axis="x", labelsize=FONT_TINY, colors=DIM)
     ax_bars.axvline(0, color=GREY, linewidth=0.8, alpha=0.6)
-    ax_bars.set_title("5-Day Equity Return (%)", fontsize=9, color=DIM, pad=6)
+    ax_bars.set_title("5-Day Equity Return (%)", fontsize=FONT_HEADLINE, color=DIM, pad=6)
     ax_bars.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:+.1f}%"))
-    ax_bars.grid(axis="x", color="#2a1200", linewidth=0.5, alpha=0.7)
+    ax_bars.grid(axis="x", color=PANEL_BORDER, linewidth=0.5, alpha=0.7)
 
     # Dynamic xlim — prevents label clipping
     xmin = min(values)
@@ -227,11 +245,11 @@ def draw_card(equity_data, wti_val, wti_date, wti_chg, ng_val, ng_date, ng_chg,
     for i, (v, c) in enumerate(zip(values, colors)):
         ha = "left" if v >= 0 else "right"
         ax_bars.text(v + (offset if v >= 0 else -offset), i,
-                     f"{v:+.2f}%", va="center", ha=ha, fontsize=6.5, color=c)
+                     f"{v:+.2f}%", va="center", ha=ha, fontsize=FONT_SMALL, color=c)
 
     # ── CENTER: WTI + NG SPARKLINES ───────────────────────────────────────────
     ax_price.axis("off")
-    ax_price.set_title("Spot Prices (FRED)", fontsize=9, color=DIM, pad=6)
+    ax_price.set_title("Spot Prices (FRED)", fontsize=FONT_HEADLINE, color=DIM, pad=6)
 
     if wti_hist:
         wti_vals = [v for _, v in wti_hist[-30:]]
@@ -245,24 +263,24 @@ def draw_card(equity_data, wti_val, wti_date, wti_chg, ng_val, ng_date, ng_chg,
         ax_wti.set_yticks([min(wti_vals), max(wti_vals)])
         ax_wti.tick_params(axis="y", labelsize=6, colors=DIM)
         for spine in ax_wti.spines.values():
-            spine.set_edgecolor("#2a1200")
+            spine.set_edgecolor(PANEL_BORDER)
 
-    ax_price.text(0.5, 0.93, "WTI Crude Spot", fontsize=8, color=DIM,
+    ax_price.text(0.5, 0.93, "WTI Crude Spot", fontsize=FONT_SMALL, color=DIM,
                   transform=ax_price.transAxes, ha="center")
     wti_color_disp = GREEN if wti_chg >= 0 else RED
     ax_price.text(0.5, 0.56, f"\\${wti_val:.2f}/bbl  {wti_chg:+.1f}%",
-                  fontsize=9, color=wti_color_disp, fontweight="bold",
+                  fontsize=FONT_HEADLINE, color=wti_color_disp, fontweight="bold",
                   transform=ax_price.transAxes, ha="center")
     # Staleness: FRED WTI is daily but may lag 1-3 days
     wti_age = days_old(wti_date)
     wti_date_color = AMBER if wti_age > 7 else GREY
     ax_price.text(0.5, 0.50, f"as of {wti_date}" + (" ⚠" if wti_age > 7 else ""),
-                  fontsize=6.5, color=wti_date_color,
+                  fontsize=FONT_SMALL, color=wti_date_color,
                   transform=ax_price.transAxes, ha="center")
 
     ax_price.add_artist(plt.Line2D([0.05, 0.95], [0.45, 0.45],
                                     transform=ax_price.transAxes,
-                                    color="#2a1200", linewidth=1))
+                                    color=PANEL_BORDER, linewidth=1))
 
     if ng_hist:
         ng_vals = [v for _, v in ng_hist[-30:]]
@@ -276,24 +294,24 @@ def draw_card(equity_data, wti_val, wti_date, wti_chg, ng_val, ng_date, ng_chg,
         ax_ng.set_yticks([min(ng_vals), max(ng_vals)])
         ax_ng.tick_params(axis="y", labelsize=6, colors=DIM)
         for spine in ax_ng.spines.values():
-            spine.set_edgecolor("#2a1200")
+            spine.set_edgecolor(PANEL_BORDER)
 
-    ax_price.text(0.5, 0.45, "Henry Hub Nat Gas", fontsize=8, color=DIM,
+    ax_price.text(0.5, 0.45, "Henry Hub Nat Gas", fontsize=FONT_SMALL, color=DIM,
                   transform=ax_price.transAxes, ha="center")
     ng_color_disp = GREEN if ng_chg >= 0 else RED
     ax_price.text(0.5, 0.09, f"\\${ng_val:.3f}/MMBtu  {ng_chg:+.1f}%",
-                  fontsize=9, color=ng_color_disp, fontweight="bold",
+                  fontsize=FONT_HEADLINE, color=ng_color_disp, fontweight="bold",
                   transform=ax_price.transAxes, ha="center")
     # Staleness: FRED MHHNGSP is weekly — amber if >14 days
     ng_age = days_old(ng_date)
     ng_date_color = AMBER if ng_age > 14 else GREY
     ax_price.text(0.5, 0.03, f"as of {ng_date}" + (" ⚠ lag" if ng_age > 14 else ""),
-                  fontsize=6.5, color=ng_date_color,
+                  fontsize=FONT_SMALL, color=ng_date_color,
                   transform=ax_price.transAxes, ha="center")
 
     # ── RIGHT: MARKET STATS ────────────────────────────────────────────────────
     ax_stats.axis("off")
-    ax_stats.set_title("Market Snapshot", fontsize=9, color=DIM, pad=6)
+    ax_stats.set_title("Market Snapshot", fontsize=FONT_HEADLINE, color=DIM, pad=6)
 
     xle_ret = next((e["ret5d"] for e in equity_data if e["ticker"] == "XLE"), 0.0)
     xop_ret = next((e["ret5d"] for e in equity_data if e["ticker"] == "XOP"), 0.0)
@@ -306,8 +324,13 @@ def draw_card(equity_data, wti_val, wti_date, wti_chg, ng_val, ng_date, ng_chg,
         ("XLE 5-Day",             f"{xle_ret:+.2f}%"),
         ("XOP 5-Day",             f"{xop_ret:+.2f}%"),
     ]
+    # Practitioner layer: Cushing inventory + refinery utilization
+    if cushing is not None:
+        stats.append(("Cushing Stocks", f"{cushing:.1f}M bbls"))
+    if ref_util is not None:
+        stats.append(("Refinery Util", f"{ref_util:.1f}%"))
 
-    row_h2 = 0.125
+    row_h2 = 0.10
     y2 = 0.86
     for label, val in stats:
         val_color = WHITE
@@ -317,14 +340,20 @@ def draw_card(equity_data, wti_val, wti_date, wti_chg, ng_val, ng_date, ng_chg,
                 val_color = GREEN if num >= 0 else RED
             except ValueError:
                 pass
-        ax_stats.text(0.06, y2, label, fontsize=8, color=DIM,
+        elif label == "Refinery Util":
+            try:
+                num = float(val.replace("%", ""))
+                val_color = RED if num > 93 else (AMBER if num > 90 else WHITE)
+            except ValueError:
+                pass
+        ax_stats.text(0.06, y2, label, fontsize=FONT_LABEL, color=DIM,
                       transform=ax_stats.transAxes, va="top")
-        ax_stats.text(0.94, y2, val, fontsize=8.5, color=val_color,
+        ax_stats.text(0.94, y2, val, fontsize=FONT_HANDLE, color=val_color,
                       fontweight="bold", transform=ax_stats.transAxes,
                       ha="right", va="top")
         ax_stats.add_artist(plt.Line2D(
             [0.03, 0.97], [y2 - 0.015, y2 - 0.015],
-            transform=ax_stats.transAxes, color="#2a1200", linewidth=0.5,
+            transform=ax_stats.transAxes, color=PANEL_BORDER, linewidth=0.5,
         ))
         y2 -= row_h2
 
@@ -336,20 +365,22 @@ def draw_card(equity_data, wti_val, wti_date, wti_chg, ng_val, ng_date, ng_chg,
                           transform=ax_stats.transAxes, clip_on=False)
     ax_stats.add_patch(rect)
     ax_stats.text(0.5, y2 + 0.04, f"Oil/Gas Ratio (BTU): {spread:.1f}x",
-                  fontsize=9, color=ACCENT, fontweight="bold",
+                  fontsize=FONT_HEADLINE, color=ACCENT, fontweight="bold",
                   transform=ax_stats.transAxes, ha="center", va="center")
 
     # ── FOOTER ────────────────────────────────────────────────────────────────
-    fig.text(0.02, 0.06,
-             f"Source: FRED (DCOILWTICO, MHHNGSP) + Yahoo Finance (NYMEX)  |  Generated: {TIMESTAMP}",
-             fontsize=7.5, color=GREY, va="top")
-    fig.text(0.98, 0.06, "github.com/mboyajeffers/data-intelligence-platform",
-             fontsize=7.5, color=ACCENT, va="top", ha="right")
+    fig.text(MARGIN_LEFT, FOOTER_Y,
+             f"Source: FRED (DCOILWTICO, MHHNGSP) + Yahoo Finance (NYMEX)  |  {TIMESTAMP}",
+             fontsize=FONT_SMALL, color=GREY, va="top")
+    fig.text(MARGIN_RIGHT, FOOTER_Y, "@Mboya_Jeffers",
+             fontsize=FONT_SMALL, color=ACCENT, va="top", ha="right")
 
-    fig.add_artist(plt.Line2D([0.02, 0.98], [0.105, 0.105],
+    fig.add_artist(plt.Line2D([MARGIN_LEFT, MARGIN_RIGHT], [FOOTER_LINE_Y, FOOTER_LINE_Y],
                               transform=fig.transFigure,
-                              color="#2a1200", linewidth=0.8))
+                              color=PANEL_BORDER, linewidth=0.8))
 
+    
+    detect_and_fix_overlaps(fig)
     plt.savefig(OUT_PATH, dpi=300, bbox_inches="tight",
                 facecolor=BG, edgecolor="none")
     plt.close()
@@ -388,6 +419,14 @@ def main():
     print("Fetching energy equity returns...")
     equity_data = fetch_energy_equities()
 
+    print("Fetching FRED: Cushing crude inventory (WCESTUS1)...")
+    cushing_rows = fetch_fred_history("WCESTUS1", start="2024-01-01")
+    cushing_val = cushing_rows[-1][1] if cushing_rows else None
+
+    print("Fetching FRED: Refinery utilization (WPULEUS3)...")
+    ref_util_rows = fetch_fred_history("WPULEUS3", start="2024-01-01")
+    ref_util_val = ref_util_rows[-1][1] if ref_util_rows else None
+
     print("Drawing card...")
     draw_card(
         equity_data,
@@ -395,7 +434,9 @@ def main():
         ng_val, ng_date, ng_chg,
         wti_hist, ng_hist,
         cl_price, cl_ret5d,
-        ng_fut_price, ng_ret5d
+        ng_fut_price, ng_ret5d,
+        cushing=cushing_val,
+        ref_util=ref_util_val,
     )
     print("Done.")
 

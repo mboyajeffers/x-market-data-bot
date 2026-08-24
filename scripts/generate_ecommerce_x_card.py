@@ -10,7 +10,7 @@ import csv
 import io
 import subprocess
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import matplotlib
@@ -20,25 +20,37 @@ import matplotlib.gridspec as gridspec
 from matplotlib.patches import FancyBboxPatch
 import yfinance as yf
 
+from card_spec import (
+    FONT_TITLE, FONT_HEADLINE, FONT_STAT, FONT_HANDLE,
+    FONT_LABEL, FONT_VALUE, FONT_SMALL, FONT_TINY, FONT_MICRO,
+    GS_TOP, GS_BOTTOM, GS_LEFT, GS_RIGHT, GS_WSPACE,
+    HDR_TITLE_Y, HDR_HEADLINE_Y, HDR_STAT_Y, HDR_HANDLE_Y,
+    FOOTER_Y, FOOTER_LINE_Y, MARGIN_LEFT, MARGIN_RIGHT,
+)
+from card_validator import detect_and_fix_overlaps
+
+
 # ─── PATHS ────────────────────────────────────────────────────────────────────
 
 OUT_DIR   = Path(__file__).parent.parent / "cards"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
-TODAY     = datetime.now().strftime("%Y-%m-%d")
-TIMESTAMP = datetime.now().strftime("%Y-%m-%d %H:%M UTC")
+_now_utc  = datetime.now(timezone.utc)
+TODAY     = _now_utc.strftime("%Y-%m-%d")
+TIMESTAMP = _now_utc.strftime("%Y-%m-%d %H:%M UTC")
 OUT_PATH  = OUT_DIR / f"ecommerce_x_card_{TODAY}.png"
 
 # ─── COLORS ───────────────────────────────────────────────────────────────────
 
-BG      = "#120c00"
-AMBER   = "#d97706"
-GOLD    = "#fbbf24"
-GREEN   = "#22c55e"
-RED     = "#ef4444"
-GREY    = "#6b7280"
-WHITE   = "#f1f5f9"
-DIM     = "#94a3b8"
-CARD_BG = "#1e1400"
+BG           = "#0a0e14"   # site --bg-primary
+AMBER        = "#d97706"   # ecommerce accent (CLAUDE.md #d97706 amber-orange)
+GOLD         = "#f59e0b"   # secondary highlight
+GREEN        = "#22c55e"
+RED          = "#ef4444"
+GREY         = "#64748b"   # site --text-muted
+WHITE        = "#f1f5f9"   # site --text-primary
+DIM          = "#94a3b8"   # site --text-secondary
+CARD_BG      = "#1a2130"   # site --bg-card
+PANEL_BORDER = "#2a3441"   # site --border-color
 
 # ─── UNIVERSE ─────────────────────────────────────────────────────────────────
 
@@ -101,10 +113,16 @@ def fetch_fred_series(url, n=18, retries=3):
 def draw_card(stock_data, sentiment_rows, retail_rows, spy_ret, vix):
     plt.style.use("dark_background")
     fig = plt.figure(figsize=(12, 6.75), dpi=300, facecolor=BG)
+
+    # Top accent stripe
+    fig.add_artist(plt.Line2D([0, 1], [0.993, 0.993],
+                              transform=fig.transFigure, color=AMBER, linewidth=2.5,
+                              solid_capstyle="butt", zorder=10))
+
     gs = gridspec.GridSpec(1, 3, figure=fig,
                            width_ratios=[4, 3.5, 2.5],
                            left=0.02, right=0.98,
-                           top=0.82, bottom=0.13, wspace=0.33)
+                           top=GS_TOP, bottom=GS_BOTTOM, wspace=GS_WSPACE)
     ax_bars  = fig.add_subplot(gs[0, 0])
     ax_fred  = fig.add_subplot(gs[0, 1])
     ax_stats = fig.add_subplot(gs[0, 2])
@@ -112,7 +130,7 @@ def draw_card(stock_data, sentiment_rows, retail_rows, spy_ret, vix):
     for ax in [ax_bars, ax_fred, ax_stats]:
         ax.set_facecolor(CARD_BG)
         for sp in ax.spines.values():
-            sp.set_edgecolor("#2a1a00")
+            sp.set_edgecolor(PANEL_BORDER)
 
     valid = [(sym, name, p, r) for (sym, name), (p, r) in zip(STOCKS, stock_data)
              if r is not None]
@@ -138,15 +156,15 @@ def draw_card(stock_data, sentiment_rows, retail_rows, spy_ret, vix):
         headline = "E-commerce sector — weekly snapshot"
 
     # ── HEADER ────────────────────────────────────────────────────────────────
-    fig.text(0.02, 0.93, f"E-Commerce Sector — {TODAY}",
-             fontsize=14, fontweight="bold", color=WHITE, va="top")
-    fig.text(0.02, 0.88, headline, fontsize=9, color=AMBER, va="top")
+    fig.text(MARGIN_LEFT, HDR_TITLE_Y, f"E-Commerce Sector — {TODAY}",
+             fontsize=FONT_TITLE, fontweight="bold", color=WHITE, va="top")
+    fig.text(MARGIN_LEFT, HDR_HEADLINE_Y, headline, fontsize=FONT_HEADLINE, color=AMBER, va="top")
     vix_c = RED if (vix or 0) > 25 else (AMBER if (vix or 0) > 18 else WHITE)
-    fig.text(0.98, 0.92,
+    fig.text(MARGIN_RIGHT, HDR_STAT_Y,
              f"SPY: {spy_r:+.1f}%  |  VIX: {vix:.1f}" if vix else f"SPY: {spy_r:+.1f}%",
-             fontsize=9, color=vix_c, va="top", ha="right")
-    fig.text(0.98, 0.86, "@Mboya_Jeffers",
-             fontsize=8.5, color=AMBER, va="top", ha="right", fontweight="bold")
+             fontsize=FONT_HEADLINE, color=vix_c, va="top", ha="right")
+    fig.text(MARGIN_RIGHT, HDR_HANDLE_Y, "@Mboya_Jeffers",
+             fontsize=FONT_HANDLE, color=AMBER, va="top", ha="right", fontweight="bold")
 
     # ── LEFT: BAR CHART ───────────────────────────────────────────────────────
     labels = [x[1] for x in valid_sorted]
@@ -156,12 +174,12 @@ def draw_card(stock_data, sentiment_rows, retail_rows, spy_ret, vix):
     y_pos = range(len(labels))
     ax_bars.barh(list(y_pos), values, color=bar_colors, height=0.65, alpha=0.85)
     ax_bars.set_yticks(list(y_pos))
-    ax_bars.set_yticklabels(labels, fontsize=7.5, color=WHITE)
-    ax_bars.tick_params(axis="x", labelsize=7, colors=DIM)
+    ax_bars.set_yticklabels(labels, fontsize=FONT_LABEL, color=WHITE)
+    ax_bars.tick_params(axis="x", labelsize=FONT_TINY, colors=DIM)
     ax_bars.axvline(0, color=GREY, linewidth=0.8, alpha=0.6)
-    ax_bars.set_title("5-Day Return (%)", fontsize=9, color=DIM, pad=6)
+    ax_bars.set_title("5-Day Return (%)", fontsize=FONT_HEADLINE, color=DIM, pad=6)
     ax_bars.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:+.1f}%"))
-    ax_bars.grid(axis="x", color="#2a1a00", linewidth=0.5, alpha=0.7)
+    ax_bars.grid(axis="x", color=PANEL_BORDER, linewidth=0.5, alpha=0.7)
 
     if values:
         xmin, xmax = min(values), max(values) if max(values) > 0 else 0.5
@@ -171,11 +189,11 @@ def draw_card(stock_data, sentiment_rows, retail_rows, spy_ret, vix):
             off = (xmax - xmin) * 0.04 or 0.1
             ha = "left" if v >= 0 else "right"
             ax_bars.text(v + (off if v >= 0 else -off), i, f"{v:+.2f}%",
-                         va="center", ha=ha, fontsize=7, color=c)
+                         va="center", ha=ha, fontsize=FONT_TINY, color=c)
 
     # ── CENTER: Consumer Sentiment + Retail Sales ──────────────────────────────
     ax_fred.axis("off")
-    ax_fred.set_title("Consumer Sentiment (FRED UMCSENT)", fontsize=9, color=DIM, pad=6)
+    ax_fred.set_title("Consumer Sentiment (FRED UMCSENT)", fontsize=FONT_HEADLINE, color=DIM, pad=6)
 
     if sentiment_rows and len(sentiment_rows) >= 3:
         dates_s = [r[0][:7] for r in sentiment_rows]  # YYYY-MM
@@ -185,7 +203,7 @@ def draw_card(stock_data, sentiment_rows, retail_rows, spy_ret, vix):
         inner = ax_fred.inset_axes([0.05, 0.36, 0.90, 0.52])
         inner.set_facecolor("#160f00")
         for side in inner.spines.values():
-            side.set_edgecolor("#2a1a00")
+            side.set_edgecolor(PANEL_BORDER)
         inner.tick_params(colors=GREY, labelsize=5.5)
 
         inner.plot(xs, vals_s, color=AMBER, linewidth=1.8, zorder=3)
@@ -201,8 +219,8 @@ def draw_card(stock_data, sentiment_rows, retail_rows, spy_ret, vix):
         # Only show first/last date labels
         tick_idx = [0, len(xs) - 1]
         inner.set_xticks(tick_idx)
-        inner.set_xticklabels([dates_s[0], dates_s[-1]], fontsize=5, color=GREY)
-        inner.set_ylabel("Index", fontsize=5.5, color=GREY)
+        inner.set_xticklabels([dates_s[0], dates_s[-1]], fontsize=FONT_MICRO, color=GREY)
+        inner.set_ylabel("Index", fontsize=FONT_MICRO, color=GREY)
 
         cur = vals_s[-1]
         prev = vals_s[-2] if len(vals_s) >= 2 else cur
@@ -210,18 +228,18 @@ def draw_card(stock_data, sentiment_rows, retail_rows, spy_ret, vix):
         cur_c = GREEN if cur >= 70 else (AMBER if cur >= 60 else RED)
 
         ax_fred.text(0.50, 0.27, f"{cur:.1f}",
-                     fontsize=18, color=cur_c, fontweight="bold",
+                     fontsize=FONT_TITLE, color=cur_c, fontweight="bold",
                      transform=ax_fred.transAxes, ha="center", va="bottom")
         ax_fred.text(0.50, 0.22, f"({delta:+.1f} vs prior month)",
-                     fontsize=7, color=DIM,
+                     fontsize=FONT_TINY, color=DIM,
                      transform=ax_fred.transAxes, ha="center", va="bottom")
         ax_fred.text(0.50, 0.16,
                      "Strong" if cur >= 80 else ("Fair" if cur >= 65 else ("Weak" if cur >= 55 else "Depressed")),
-                     fontsize=8.5, color=cur_c, transform=ax_fred.transAxes,
+                     fontsize=FONT_HANDLE, color=cur_c, transform=ax_fred.transAxes,
                      ha="center", va="bottom", style="italic")
     else:
         ax_fred.text(0.5, 0.5, "Consumer sentiment\ndata unavailable",
-                     fontsize=9, color=GREY, transform=ax_fred.transAxes,
+                     fontsize=FONT_HEADLINE, color=GREY, transform=ax_fred.transAxes,
                      ha="center", va="center")
 
     # Retail sales note
@@ -232,16 +250,16 @@ def draw_card(stock_data, sentiment_rows, retail_rows, spy_ret, vix):
         rs_c = GREEN if rs_mom >= 0 else RED
         ax_fred.text(0.5, 0.09,
                      f"Retail sales: \\${rs_latest/1000:.1f}B  ({rs_mom:+.1f}% MoM)",
-                     fontsize=7.5, color=rs_c, transform=ax_fred.transAxes,
+                     fontsize=FONT_LABEL, color=rs_c, transform=ax_fred.transAxes,
                      ha="center", va="bottom")
 
     ax_fred.text(0.5, 0.02, "FRED  |  Monthly  |  Univ. of Michigan",
-                 fontsize=6, color=GREY, transform=ax_fred.transAxes,
+                 fontsize=FONT_TINY, color=GREY, transform=ax_fred.transAxes,
                  ha="center", style="italic")
 
     # ── RIGHT: STATS ──────────────────────────────────────────────────────────
     ax_stats.axis("off")
-    ax_stats.set_title("Sector Summary", fontsize=9, color=DIM, pad=6)
+    ax_stats.set_title("Sector Summary", fontsize=FONT_HEADLINE, color=DIM, pad=6)
 
     rows = []
     if valid_sorted:
@@ -264,23 +282,25 @@ def draw_card(stock_data, sentiment_rows, retail_rows, spy_ret, vix):
             vc = GREEN if float(val.split(" ")[-1].replace("%", "")) >= 0 else RED
         except Exception:
             vc = WHITE
-        ax_stats.text(0.06, y2, label, fontsize=7.5, color=DIM,
+        ax_stats.text(0.06, y2, label, fontsize=FONT_LABEL, color=DIM,
                       transform=ax_stats.transAxes, va="top")
-        ax_stats.text(0.94, y2, val, fontsize=8.5, color=vc, fontweight="bold",
+        ax_stats.text(0.94, y2, val, fontsize=FONT_HANDLE, color=vc, fontweight="bold",
                       transform=ax_stats.transAxes, ha="right", va="top")
         ax_stats.add_artist(plt.Line2D([0.03, 0.97], [y2 - 0.015, y2 - 0.015],
                                        transform=ax_stats.transAxes,
-                                       color="#2a1a00", linewidth=0.5))
+                                       color=PANEL_BORDER, linewidth=0.5))
         y2 -= 0.13
 
     # ── FOOTER ────────────────────────────────────────────────────────────────
-    fig.text(0.02, 0.06, f"Source: Yahoo Finance + FRED  |  Generated: {TIMESTAMP}",
-             fontsize=7.5, color=GREY, va="top")
-    fig.text(0.98, 0.06, "github.com/mboyajeffers/data-intelligence-platform",
-             fontsize=7.5, color=AMBER, va="top", ha="right")
-    fig.add_artist(plt.Line2D([0.02, 0.98], [0.105, 0.105],
-                              transform=fig.transFigure, color="#2a1a00", linewidth=0.8))
+    fig.text(MARGIN_LEFT, FOOTER_Y, f"Source: Yahoo Finance + FRED  |  Generated: {TIMESTAMP}",
+             fontsize=FONT_SMALL, color=GREY, va="top")
+    fig.text(MARGIN_RIGHT, FOOTER_Y, "@Mboya_Jeffers",
+             fontsize=FONT_SMALL, color=AMBER, va="top", ha="right")
+    fig.add_artist(plt.Line2D([MARGIN_LEFT, MARGIN_RIGHT], [FOOTER_LINE_Y, FOOTER_LINE_Y],
+                              transform=fig.transFigure, color=PANEL_BORDER, linewidth=0.8))
 
+    
+    detect_and_fix_overlaps(fig)
     plt.savefig(OUT_PATH, dpi=300, bbox_inches="tight", facecolor=BG, edgecolor="none")
     plt.close()
     print(f"Saved: {OUT_PATH}")

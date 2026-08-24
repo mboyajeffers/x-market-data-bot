@@ -9,7 +9,7 @@ Data: Open-Meteo API (free, no key) — current conditions + 7-day forecast
 import json
 import time
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import matplotlib
@@ -19,27 +19,39 @@ import matplotlib.gridspec as gridspec
 from matplotlib.patches import FancyBboxPatch
 import matplotlib.ticker as mticker
 
+from card_spec import (
+    FONT_TITLE, FONT_HEADLINE, FONT_STAT, FONT_HANDLE,
+    FONT_LABEL, FONT_VALUE, FONT_SMALL, FONT_TINY,
+    GS_TOP, GS_BOTTOM, GS_LEFT, GS_RIGHT, GS_WSPACE,
+    HDR_TITLE_Y, HDR_HEADLINE_Y, HDR_STAT_Y, HDR_HANDLE_Y,
+    FOOTER_Y, FOOTER_LINE_Y, MARGIN_LEFT, MARGIN_RIGHT,
+)
+from card_validator import detect_and_fix_overlaps
+
+
 # ─── PATHS ────────────────────────────────────────────────────────────────────
 
 OUT_DIR   = Path(__file__).parent.parent / "cards"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
-TODAY     = datetime.now().strftime("%Y-%m-%d")
-TIMESTAMP = datetime.now().strftime("%Y-%m-%d %H:%M UTC")
+_now_utc  = datetime.now(timezone.utc)
+TODAY     = _now_utc.strftime("%Y-%m-%d")
+TIMESTAMP = _now_utc.strftime("%Y-%m-%d %H:%M UTC")
 OUT_PATH  = OUT_DIR / f"weather_x_card_{TODAY}.png"
 
 # ─── COLORS ───────────────────────────────────────────────────────────────────
 
-BG      = "#060f1a"
-SKY     = "#0ea5e9"
-BLUE    = "#3b82f6"
-CYAN    = "#22d3ee"
-GREEN   = "#22c55e"
-RED     = "#ef4444"
-AMBER   = "#f59e0b"
-GREY    = "#6b7280"
-WHITE   = "#f1f5f9"
-DIM     = "#94a3b8"
-CARD_BG = "#0a1628"
+BG           = "#0a0e14"   # site --bg-primary
+SKY          = "#06b6d4"   # weather accent: sky cyan — atmosphere / data
+BLUE         = "#06b6d4"   # weather accent (updated from teal to sky cyan)
+CYAN         = "#22d3ee"   # weather secondary: lighter sky cyan
+GREEN        = "#22c55e"
+RED          = "#ef4444"
+AMBER        = "#f59e0b"
+GREY         = "#64748b"   # site --text-muted
+WHITE        = "#f1f5f9"   # site --text-primary
+DIM          = "#94a3b8"   # site --text-secondary
+CARD_BG      = "#1a2130"   # site --bg-card
+PANEL_BORDER = "#2a3441"   # site --border-color
 
 # ─── CITIES ───────────────────────────────────────────────────────────────────
 
@@ -78,7 +90,7 @@ def fetch_city(name, lat, lon, tz, retries=3):
     )
     for i in range(retries):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "CleanMetrics/1.0"})
+            req = urllib.request.Request(url, headers={"User-Agent": "MarketDataBot/1.0"})
             with urllib.request.urlopen(req, timeout=15) as r:
                 data = json.loads(r.read())
             cur = data.get("current", {})
@@ -134,10 +146,16 @@ def draw_card(city_data):
 
     plt.style.use("dark_background")
     fig = plt.figure(figsize=(12, 6.75), dpi=300, facecolor=BG)
+
+    # Top accent stripe
+    fig.add_artist(plt.Line2D([0, 1], [0.993, 0.993],
+                              transform=fig.transFigure, color=SKY, linewidth=2.5,
+                              solid_capstyle="butt", zorder=10))
+
     gs = gridspec.GridSpec(1, 3, figure=fig,
                            width_ratios=[3.5, 4, 2.5],
                            left=0.02, right=0.98,
-                           top=0.82, bottom=0.13, wspace=0.30)
+                           top=GS_TOP, bottom=GS_BOTTOM, wspace=GS_WSPACE)
     ax_cities = fig.add_subplot(gs[0, 0])
     ax_trend  = fig.add_subplot(gs[0, 1])
     ax_stats  = fig.add_subplot(gs[0, 2])
@@ -145,7 +163,7 @@ def draw_card(city_data):
     for ax in [ax_cities, ax_trend, ax_stats]:
         ax.set_facecolor(CARD_BG)
         for sp in ax.spines.values():
-            sp.set_edgecolor("#0a1a2e")
+            sp.set_edgecolor(PANEL_BORDER)
 
     # Dynamic headline
     if city_data:
@@ -169,17 +187,17 @@ def draw_card(city_data):
         headline = "US weather data unavailable"
 
     # ── HEADER ────────────────────────────────────────────────────────────────
-    fig.text(0.02, 0.93, f"US Weather Snapshot — {TODAY}",
-             fontsize=14, fontweight="bold", color=WHITE, va="top")
-    fig.text(0.02, 0.88, headline, fontsize=9, color=CYAN, va="top")
-    fig.text(0.98, 0.92, f"8 major US cities  |  Open-Meteo",
-             fontsize=9, color=DIM, va="top", ha="right")
-    fig.text(0.98, 0.86, "@Mboya_Jeffers",
-             fontsize=8.5, color=SKY, va="top", ha="right", fontweight="bold")
+    fig.text(MARGIN_LEFT, HDR_TITLE_Y, f"US Weather Snapshot — {TODAY}",
+             fontsize=FONT_TITLE, fontweight="bold", color=WHITE, va="top")
+    fig.text(MARGIN_LEFT, HDR_HEADLINE_Y, headline, fontsize=FONT_HEADLINE, color=CYAN, va="top")
+    fig.text(MARGIN_RIGHT, HDR_STAT_Y, f"8 major US cities  |  Open-Meteo",
+             fontsize=FONT_HEADLINE, color=DIM, va="top", ha="right")
+    fig.text(MARGIN_RIGHT, HDR_HANDLE_Y, "@Mboya_Jeffers",
+             fontsize=FONT_HANDLE, color=SKY, va="top", ha="right", fontweight="bold")
 
     # ── LEFT: CITY CURRENT CONDITIONS ─────────────────────────────────────────
     ax_cities.axis("off")
-    ax_cities.set_title("Current Conditions", fontsize=9, color=DIM, pad=6)
+    ax_cities.set_title("Current Conditions", fontsize=FONT_HEADLINE, color=DIM, pad=6)
 
     col_city  = 0.02
     col_temp  = 0.62
@@ -188,11 +206,11 @@ def draw_card(city_data):
     y         = 0.88
 
     # Header row
-    ax_cities.text(col_city, y + 0.01, "City",    fontsize=7.5, color=SKY,
+    ax_cities.text(col_city, y + 0.01, "City",    fontsize=FONT_LABEL, color=SKY,
                    fontweight="bold", transform=ax_cities.transAxes)
-    ax_cities.text(col_temp, y + 0.01, "Temp",    fontsize=7.5, color=SKY,
+    ax_cities.text(col_temp, y + 0.01, "Temp",    fontsize=FONT_LABEL, color=SKY,
                    fontweight="bold", transform=ax_cities.transAxes)
-    ax_cities.text(col_cond, y + 0.01, "Sky",     fontsize=7.5, color=SKY,
+    ax_cities.text(col_cond, y + 0.01, "Sky",     fontsize=FONT_LABEL, color=SKY,
                    fontweight="bold", transform=ax_cities.transAxes)
 
     for i, city in enumerate(city_data):
@@ -206,11 +224,11 @@ def draw_card(city_data):
 
         tc = temp_color(city["temp"])
         ax_cities.text(col_city, y2 + row_h * 0.5, city["city"],
-                       fontsize=7.5, color=WHITE, va="center",
+                       fontsize=FONT_LABEL, color=WHITE, va="center",
                        transform=ax_cities.transAxes)
         ax_cities.text(col_temp, y2 + row_h * 0.5,
                        f"{city['temp']:.0f}°F" if city["temp"] is not None else "N/A",
-                       fontsize=8, color=tc, fontweight="bold", va="center",
+                       fontsize=FONT_SMALL, color=tc, fontweight="bold", va="center",
                        transform=ax_cities.transAxes)
         cond_c = (AMBER if city["code"] in (61,63,65,80,81,82,95,96,99) else
                   CYAN  if city["code"] in (71,73,75) else
@@ -218,13 +236,13 @@ def draw_card(city_data):
                   SKY)
         ax_cities.text(col_cond, y2 + row_h * 0.5,
                        condition_icon(city["code"]),
-                       fontsize=7, color=cond_c, va="center",
+                       fontsize=FONT_TINY, color=cond_c, va="center",
                        transform=ax_cities.transAxes)
 
     # ── CENTER: NYC 7-day forecast ─────────────────────────────────────────────
     nyc = next((c for c in city_data if c["city"] == "New York"), None)
     ax_trend.axis("off")
-    ax_trend.set_title("New York — 7-Day Forecast", fontsize=9, color=DIM, pad=6)
+    ax_trend.set_title("New York — 7-Day Forecast", fontsize=FONT_HEADLINE, color=DIM, pad=6)
 
     if nyc and nyc["high7"] and nyc["low7"] and len(nyc["high7"]) >= 3:
         highs  = nyc["high7"]
@@ -236,7 +254,7 @@ def draw_card(city_data):
         inner = ax_trend.inset_axes([0.04, 0.25, 0.92, 0.65])
         inner.set_facecolor("#040c16")
         for side in inner.spines.values():
-            side.set_edgecolor("#0a1a2e")
+            side.set_edgecolor(PANEL_BORDER)
         inner.tick_params(colors=GREY, labelsize=6)
 
         inner.fill_between(xs, lows, highs, alpha=0.2, color=SKY, label="High/Low range")
@@ -245,35 +263,35 @@ def draw_card(city_data):
         inner.plot(xs, lows, color=BLUE, linewidth=1.5, marker="o", markersize=3,
                    label="Low", zorder=3)
         inner.set_xticks(xs)
-        inner.set_xticklabels(dates, fontsize=5.5, color=GREY)
+        inner.set_xticklabels(dates, fontsize=FONT_MICRO, color=GREY)
         inner.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.0f°F"))
-        inner.legend(fontsize=6, loc="upper right", framealpha=0.2)
+        inner.legend(fontsize=FONT_TINY, loc="upper right", framealpha=0.2)
 
         # Precipitation probability bars at bottom
         for xi, pp in enumerate(precip[:len(xs)]):
             if pp and pp > 10:
                 inner.text(xi, lows[xi] - (max(highs) - min(lows)) * 0.08,
-                           f"{int(pp)}%", fontsize=5, color=CYAN,
+                           f"{int(pp)}%", fontsize=FONT_MICRO, color=CYAN,
                            ha="center", va="top")
 
         # Current temp call-out
         cur_temp = nyc.get("temp")
         if cur_temp:
             ax_trend.text(0.5, 0.15, f"Now: {cur_temp:.0f}°F",
-                          fontsize=10, color=temp_color(cur_temp), fontweight="bold",
+                          fontsize=FONT_VALUE, color=temp_color(cur_temp), fontweight="bold",
                           transform=ax_trend.transAxes, ha="center", va="bottom")
     else:
         ax_trend.text(0.5, 0.5, "Forecast data\nunavailable",
-                      fontsize=9, color=GREY, transform=ax_trend.transAxes,
+                      fontsize=FONT_HEADLINE, color=GREY, transform=ax_trend.transAxes,
                       ha="center", va="center")
 
     ax_trend.text(0.5, 0.02, "% = precipitation probability  |  Open-Meteo",
-                  fontsize=6, color=GREY, transform=ax_trend.transAxes,
+                  fontsize=FONT_TINY, color=GREY, transform=ax_trend.transAxes,
                   ha="center", style="italic")
 
     # ── RIGHT: SUMMARY STATS ──────────────────────────────────────────────────
     ax_stats.axis("off")
-    ax_stats.set_title("National Summary", fontsize=9, color=DIM, pad=6)
+    ax_stats.set_title("National Summary", fontsize=FONT_HEADLINE, color=DIM, pad=6)
 
     stat_rows = []
     if city_data:
@@ -299,13 +317,13 @@ def draw_card(city_data):
 
     y2 = 0.85
     for label, val in stat_rows:
-        ax_stats.text(0.06, y2, label, fontsize=7.5, color=DIM,
+        ax_stats.text(0.06, y2, label, fontsize=FONT_LABEL, color=DIM,
                       transform=ax_stats.transAxes, va="top")
-        ax_stats.text(0.94, y2, val, fontsize=8.5, color=WHITE, fontweight="bold",
+        ax_stats.text(0.94, y2, val, fontsize=FONT_HANDLE, color=WHITE, fontweight="bold",
                       transform=ax_stats.transAxes, ha="right", va="top")
         ax_stats.add_artist(plt.Line2D([0.03, 0.97], [y2 - 0.015, y2 - 0.015],
                                        transform=ax_stats.transAxes,
-                                       color="#0a1a2e", linewidth=0.5))
+                                       color=PANEL_BORDER, linewidth=0.5))
         y2 -= 0.14
 
     y2 -= 0.03
@@ -315,17 +333,19 @@ def draw_card(city_data):
                           transform=ax_stats.transAxes, clip_on=False)
     ax_stats.add_patch(rect)
     ax_stats.text(0.5, y2, "Live conditions  |  ±1°F accuracy",
-                  fontsize=6.5, color=CYAN, transform=ax_stats.transAxes,
+                  fontsize=FONT_SMALL, color=CYAN, transform=ax_stats.transAxes,
                   ha="center", va="center", style="italic")
 
     # ── FOOTER ────────────────────────────────────────────────────────────────
-    fig.text(0.02, 0.06, f"Source: Open-Meteo (open-meteo.com)  |  Generated: {TIMESTAMP}",
-             fontsize=7.5, color=GREY, va="top")
-    fig.text(0.98, 0.06, "github.com/mboyajeffers/data-intelligence-platform",
-             fontsize=7.5, color=SKY, va="top", ha="right")
-    fig.add_artist(plt.Line2D([0.02, 0.98], [0.105, 0.105],
-                              transform=fig.transFigure, color="#0a1a2e", linewidth=0.8))
+    fig.text(MARGIN_LEFT, FOOTER_Y, f"Source: Open-Meteo (open-meteo.com)  |  Generated: {TIMESTAMP}",
+             fontsize=FONT_SMALL, color=GREY, va="top")
+    fig.text(MARGIN_RIGHT, FOOTER_Y, "@Mboya_Jeffers",
+             fontsize=FONT_SMALL, color=SKY, va="top", ha="right")
+    fig.add_artist(plt.Line2D([MARGIN_LEFT, MARGIN_RIGHT], [FOOTER_LINE_Y, FOOTER_LINE_Y],
+                              transform=fig.transFigure, color=PANEL_BORDER, linewidth=0.8))
 
+    
+    detect_and_fix_overlaps(fig)
     plt.savefig(OUT_PATH, dpi=300, bbox_inches="tight", facecolor=BG, edgecolor="none")
     plt.close()
     print(f"Saved: {OUT_PATH}")
