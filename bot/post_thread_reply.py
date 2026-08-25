@@ -172,15 +172,31 @@ def save_log(data):
     LOG_PATH.write_text(json.dumps(data, indent=2))
 
 
+PENDING_STALE_HOURS = 24  # thread replies are meant to go out ~90 min after
+# the main post — an entry still unreplied a day later isn't "pending," it's
+# abandoned. Found 2026-08-24: a July 9 oilgas launch tweet had sat with
+# thread_pending=True/thread_posted=False for 6+ weeks (thread replies never
+# actually worked until today) and was being returned ahead of today's real
+# post — replying to a 6-week-old tweet now would look broken, not current.
+
+
 def find_pending(vertical):
-    """Return the most recent log entry with thread_pending=True, thread_posted=False."""
+    """Return the most recent, still-fresh log entry with thread_pending=True,
+    thread_posted=False. Entries older than PENDING_STALE_HOURS are skipped."""
     data = load_log()
     # Search newest first
     for entry in reversed(data["posts"]):
-        if (entry.get("vertical") == vertical
+        if not (entry.get("vertical") == vertical
                 and entry.get("thread_pending") is True
                 and entry.get("thread_posted") is False):
-            return entry, data
+            continue
+        try:
+            age_hours = (datetime.now() - datetime.strptime(entry["timestamp"], "%Y-%m-%d %H:%M")).total_seconds() / 3600
+        except Exception:
+            age_hours = None
+        if age_hours is not None and age_hours > PENDING_STALE_HOURS:
+            continue
+        return entry, data
     return None, data
 
 
