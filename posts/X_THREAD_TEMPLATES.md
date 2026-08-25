@@ -35,7 +35,7 @@ Four ready-to-use thread structures. Customize the bracketed values each time.
 > This card is generated automatically every Monday morning.
 > Script pulls live data, computes indicators, renders the PNG — no human touch.
 >
-> Code: github.com/mboyajeffers/data-reports-showcase
+> Code: github.com/mboyajeffers/financial-market-analysis
 > Follow for weekly snapshots.
 
 ---
@@ -74,7 +74,7 @@ Four ready-to-use thread structures. Customize the bracketed values each time.
 >
 > If you're paying a data provider for this — you don't have to.
 >
-> Code: github.com/mboyajeffers/data-reports-showcase
+> Code: github.com/mboyajeffers/financial-market-analysis
 > Follow for weekly crypto risk snapshots.
 
 ---
@@ -114,7 +114,7 @@ Four ready-to-use thread structures. Customize the bracketed values each time.
 > If you're in [finance/energy/crypto/retail] and your team is still doing this manually — DM me.
 
 **Tweet 5 (CTA):**
-> Code is open source: github.com/mboyajeffers/data-reports-showcase
+> Code is open source: github.com/mboyajeffers/financial-market-analysis
 >
 > Follow if you work in data, analytics, or want to see what "automated" actually looks like.
 

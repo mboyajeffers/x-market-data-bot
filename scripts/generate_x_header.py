@@ -101,7 +101,7 @@ def draw_header():
         x_start += chip_w + 18
 
     # ── GITHUB LINK (bottom right) ────────────────────────────────────────────
-    ax.text(1480, 28, "github.com/mboyajeffers/data-reports-showcase",
+    ax.text(1480, 28, "github.com/mboyajeffers/financial-market-analysis",
             fontsize=10, color=DIM, va="center", ha="right", zorder=4)
 
     # ── DECORATIVE METRIC BUBBLES (right side) ────────────────────────────────

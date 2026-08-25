@@ -8,7 +8,7 @@
 | Day | Date | Type | Card | Caption | Hashtags | CTA |
 |-----|------|------|------|---------|----------|-----|
 | Mon | Jun 15 | Finance card | finance_x_card_YYYY-MM-DD.png | "Week open: sectors in focus. Tech leading, Energy lagging. Fed funds at [X]%. Full breakdown below." | #DataEngineering #FinanceData #Analytics | Follow for weekly market data snapshots |
-| Thu | Jun 19 | Crypto card | crypto_x_card_YYYY-MM-DD.png | "Crypto risk snapshot: BTC at $[X], Fear & Greed [label]. Top movers: [1], [2], [3]. Live data, automated." | #Crypto #DataEngineering #Bitcoin | GitHub: github.com/mboyajeffers/data-reports-showcase |
+| Thu | Jun 19 | Crypto card | crypto_x_card_YYYY-MM-DD.png | "Crypto risk snapshot: BTC at $[X], Fear & Greed [label]. Top movers: [1], [2], [3]. Live data, automated." | #Crypto #DataEngineering #Bitcoin | GitHub: github.com/mboyajeffers/financial-market-analysis |
 
 ---
 
