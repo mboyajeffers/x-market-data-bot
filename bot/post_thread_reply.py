@@ -36,7 +36,10 @@ TODAY    = datetime.now().strftime("%Y-%m-%d")
 NOW      = datetime.now().strftime("%Y-%m-%d %H:%M")
 
 sys.path.insert(0, str(BOT_DIR))
-from affiliate_config import THREAD_REPLIES, BIO_LINK, KRAKEN_AFFILIATE_URL, _kraken_live  # noqa: E402
+from affiliate_config import (  # noqa: E402
+    THREAD_REPLIES, BIO_LINK, KRAKEN_AFFILIATE_URL, _kraken_live, REQUIRES_DISCLOSURE
+)
+from verify import tweet_weighted_length  # noqa: E402
 
 
 # ─── DYNAMIC THREAD REPLY BUILDERS ───────────────────────────────────────────
@@ -55,54 +58,28 @@ def build_worldcup_thread_reply() -> str:
     import yfinance as yf
     from affiliate_config import (
         BIO_LINK, WC_REPORT_PRICE, GUMROAD_WC_REPORT_URL,
-        BETWAY_AFFILIATE_URL,
-        _gumroad_wc_live, _betway_live,
+        _gumroad_wc_live, _sportsbook_promo_line, _sportsbook_live,
     )
 
-    penn_ret = flut_ret = _dkng_ret = None
+    penn_ret = None
     BASELINE = "2026-06-11"
+    try:
+        hist = yf.Ticker("PENN").history(start=BASELINE)
+        if not hist.empty and len(hist) >= 2:
+            c = hist["Close"].dropna().tolist()
+            penn_ret = round((c[-1] - c[0]) / c[0] * 100, 1)
+    except Exception:
+        pass
 
-    for sym, var_name in [("PENN", "penn_ret"), ("FLUT", "flut_ret"), ("DKNG", "dkng_ret")]:
-        try:
-            hist = yf.Ticker(sym).history(start=BASELINE)
-            if not hist.empty and len(hist) >= 2:
-                c = hist["Close"].dropna().tolist()
-                ret = round((c[-1] - c[0]) / c[0] * 100, 1)
-                if var_name == "penn_ret":
-                    penn_ret = ret
-                elif var_name == "flut_ret":
-                    flut_ret = ret
-                else:
-                    _dkng_ret = ret
-            time.sleep(0.4)
-        except Exception:
-            pass
+    penn_str = f"$PENN {penn_ret:+.1f}% since kickoff" if penn_ret is not None else "$PENN through the tournament"
 
-    penn_str = f"$PENN {penn_ret:+.1f}% since WC kickoff" if penn_ret is not None else "$PENN leading WC run"
-    flut_str = (
-        f"$FLUT (FanDuel parent) {flut_ret:+.1f}% same window" if flut_ret is not None
-        else "$FLUT (FanDuel parent) active WC window"
-    )
-
-    reply = (
-        "I track sportsbook stocks daily ($DKNG $FLUT $PENN $MGM $BETZ).\n\n"
-        f"{penn_str}. {flut_str}. "
-        "The Final (Jul 19) captures 15–20% of total tournament handle in one game.\n\n"
-        "Full World Cup Sportsbook Intelligence Report:\n"
-        "• Stock plays + performance vs SPY\n"
-        "• Handle projections by stage ($2.3B–$3.35B remaining)\n"
-        "• Promo breakdown (up to $1,500 new user)\n\n"
-    )
+    reply = f"I track sportsbook stocks daily. {penn_str}.\n\n"
     if _gumroad_wc_live:
-        reply += f"{WC_REPORT_PRICE} → {GUMROAD_WC_REPORT_URL}\n\n"
+        reply += f"Full report {WC_REPORT_PRICE} → {GUMROAD_WC_REPORT_URL}\n\n"
     else:
-        reply += f"Report + analysis → {BIO_LINK}\n\n"
+        reply += f"Full report → {BIO_LINK}\n\n"
 
-    if _betway_live:
-        reply += f"Best promos → {BETWAY_AFFILIATE_URL}\n\n"
-    else:
-        reply += f"Best promos → {BIO_LINK}\n\n"
-
+    reply += f"{_sportsbook_promo_line()}\n\n" if _sportsbook_live else f"Best promos → {BIO_LINK}\n\n"
     reply += "#ad"
     return reply
 
@@ -170,16 +147,13 @@ def build_crypto_thread_reply() -> str:
 
     reply = "\n".join(lines)
     reply += (
-        "\n\nThis is what white glove subscribers get every week:\n\n"
-        "→ Full on-chain report: MVRV, DeFi TVL, liquidation rates, protocol risk\n"
-        "→ Signal feature state: 6-factor directional read (XGBoost model, 43.1% OOS)\n"
-        "→ Macro overlay: Fed Funds, 10Y, yield curve read\n"
-        "→ DeFi risk: Aave · Uniswap · Compound · Curve\n\n"
-        "$99 report / $299 report + signal / $599 + monthly call\n"
+        "\n\nWhite glove: full on-chain report, signal read, macro overlay, DeFi risk.\n"
+        "$99 report / $299 + signal / $599 + monthly call\n"
         f"{BIO_LINK}"
     )
     if _kraken_live:
-        reply += f"\n\nWhere I actually trade it: Kraken → {KRAKEN_AFFILIATE_URL}\n#ad"
+        reply += f"\n\nWhere I trade it: Kraken → {KRAKEN_AFFILIATE_URL}"
+    reply += "\n#ad"
     return reply
 
 
@@ -306,6 +280,23 @@ def main():
         notify_telegram(f"Thread reply SKIPPED [{vertical}] — {NOW}\n{msg}")
         sys.exit(0)
 
+    # 1c. Length + disclosure guard — this path had zero validation before
+    # posting (unlike post.py's main captions, which go through verify.py).
+    # Found live 2026-08-24: every static/dynamic reply except media/finance/
+    # brokerage was 100-220 chars over X's 280 limit, never caught because no
+    # thread reply had ever actually been posted before that point.
+    problems = []
+    weighted = tweet_weighted_length(reply_text)
+    if weighted > 280:
+        problems.append(f"{weighted}/280 weighted chars")
+    if vertical in REQUIRES_DISCLOSURE and "#ad" not in reply_text.lower():
+        problems.append("#ad MISSING (FTC required)")
+    if problems:
+        msg = f"Thread reply [{vertical}] BLOCKED — {'; '.join(problems)}."
+        print(f"ERROR: {msg}", file=sys.stderr)
+        notify_telegram(f"Thread reply SKIPPED [{vertical}] — {NOW}\n{msg}")
+        sys.exit(0)
+
     # 2. Find tweet_id
     if args.tweet_id:
         tweet_id = args.tweet_id
@@ -326,7 +317,7 @@ def main():
     print(f"\n--- THREAD REPLY ({vertical}) ---")
     print(f"Replying to tweet ID: {tweet_id}")
     print(f"\n{reply_text}\n")
-    print(f"--- ({len(reply_text)} chars) ---\n")
+    print(f"--- ({len(reply_text)} raw / {weighted} weighted chars) ---\n")
 
     if args.dry_run:
         print("DRY RUN — no API call made. Remove --dry-run to post live.")

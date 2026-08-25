@@ -313,12 +313,23 @@ def _append_cta(parts, vertical):
         parts.append("#ad")
 
 
+_ATTRIBUTION_PREFIXES = ("source:", "not investment", "not legal", "not tax", "not betting")
+
+
 def _finalize_caption(parts, vertical):
     """Join a caption's data-only parts and append the CTA/disclosure, trimming
     the DATA portion (not the CTA) if the combined length would exceed X's
     280-char limit. The plain `_append_cta` + `[:280]` pattern used elsewhere
     truncates blindly from the end, which risks silently cutting a referral
-    URL in half — this guarantees the CTA/#ad always survives intact instead."""
+    URL in half — this guarantees the CTA/#ad always survives intact instead.
+
+    Every caller's trailing 1-2 parts are a source/disclaimer line (checked
+    against the same phrases verify.py's has_source check looks for) — those
+    get protected the same way the CTA does. An earlier version only
+    protected the CTA and trimmed disclaimer lines like any other body
+    content; found 2026-08-24 that this dropped finance/brokerage's whole
+    source line over as little as a 3-char overage even though the final
+    caption had 5-9 chars of unused budget to spare."""
     cashtags = VERTICAL_CASHTAGS.get(vertical, "")
     cta      = VERTICAL_CTA[vertical]
     suffix_parts = []
@@ -327,6 +338,15 @@ def _finalize_caption(parts, vertical):
     suffix_parts.append(f"\n{cta}")
     if vertical in REQUIRES_DISCLOSURE:
         suffix_parts.append("#ad")
+
+    # Peel trailing attribution/disclaimer parts off into the protected suffix.
+    parts = list(parts)
+    attribution = []
+    while parts and parts[-1].strip().lower().startswith(_ATTRIBUTION_PREFIXES):
+        attribution.insert(0, parts.pop())
+    if attribution:
+        suffix_parts = [f"\n{a}" for a in attribution] + suffix_parts
+
     suffix = "\n".join(suffix_parts)
     body   = "\n".join(parts)
     budget = 280 - len(suffix)
@@ -335,16 +355,20 @@ def _finalize_caption(parts, vertical):
         return suffix[:280]
     if len(body) <= budget:
         return body + suffix
-    # Trim to the last complete line that fits, not a raw character cut —
+    # Trim to the last complete word that fits, not a raw character cut —
     # a hard [:budget] slice can land mid-word (e.g. "Source: EIA..." -> "Sourc").
-    lines, trimmed, used = body.split("\n"), [], 0
-    for line in lines:
-        added = len(line) + (1 if trimmed else 0)
-        if used + added > budget:
+    # Word-level, not line-level: an earlier line-level version dropped an
+    # entire 54-char source-attribution line over a 3-char overage (found
+    # 2026-08-24 on finance/brokerage) — wasteful when there's clearly room.
+    import re
+    tokens = re.split(r"(\s+)", body)  # keeps whitespace/newlines as their own tokens
+    trimmed, used = [], 0
+    for tok in tokens:
+        if used + len(tok) > budget:
             break
-        trimmed.append(line)
-        used += added
-    return "\n".join(trimmed) + suffix
+        trimmed.append(tok)
+        used += len(tok)
+    return "".join(trimmed).rstrip() + suffix
 
 # ─── CAPTION BUILDERS ────────────────────────────────────────────────────────
 
@@ -841,32 +865,43 @@ def build_caption_worldcup():
 
     # ── CTA + HASHTAGS ────────────────────────────────────────────
     # Bio link is a monetized destination → #ad included (conservative FTC posture).
+    # #ad is protected the same way _finalize_caption protects it elsewhere —
+    # this vertical is in REQUIRES_DISCLOSURE, so a blind [:280] cut that
+    # lands on the suffix (as the old version of this function did) risks
+    # silently shipping a post with no FTC disclosure.
     from affiliate_config import VERTICAL_CTA
     wc_cta = VERTICAL_CTA.get("worldcup", BIO_LINK)
-    parts.append(f"\n{wc_cta}")
     usa_tag = " #USMNT" if (usa_today or usa_yest) else ""
-    parts.append(f"#WorldCup2026{usa_tag} #ad")
-
-    return "\n".join(parts)[:280]
+    suffix = f"\n{wc_cta}\n#WorldCup2026{usa_tag} #ad"
+    body   = "\n".join(parts)
+    budget = 280 - len(suffix)
+    if len(body) > budget:
+        import re
+        tokens, trimmed, used = re.split(r"(\s+)", body), [], 0
+        for tok in tokens:
+            if used + len(tok) > budget:
+                break
+            trimmed.append(tok)
+            used += len(tok)
+        body = "".join(trimmed).rstrip()
+    return body + suffix
 
 
 def build_caption_cannabis():
     _, mj    = _yf_5d("MJ")
     _, curlf = _yf_5d("CURLF")
     _, gtbif = _yf_5d("GTBIF")
-    # Compact format: data hook → CTA always fits within 280 chars
-    lines = [f"NYC Cannabis — {TODAY}"]
-    lines.append("280E: $1M store → ~$52K/yr extra fed tax")
-    lines.append("NY excise: tier calc — most POS systems wrong")
-    lines.append("OCM audits active · Metrc is #1 trigger")
-    mso = [f"{s}: {r:+.1f}%" for s, r in [("$MJ", mj), ("CURLF", curlf), ("GTBIF", gtbif)]
+    parts = [f"NYC Cannabis — {TODAY}"]
+    parts.append("280E: $1M store → ~$52K/yr extra fed tax")
+    parts.append("NY excise: tier calc — most POS systems wrong")
+    parts.append("OCM audits active · Metrc is #1 trigger")
+    # $MJ omitted here — it's already added as the vertical's cashtag suffix below.
+    mso = [f"{s}: {r:+.1f}%" for s, r in [("MJ", mj), ("CURLF", curlf), ("GTBIF", gtbif)]
            if r is not None]
     if mso:
-        lines.append("MSO 5d: " + "  ".join(mso))
-    cta = VERTICAL_CTA.get("cannabis", "")
-    if cta:
-        lines.append(f"\n{cta}")
-    return "\n".join(lines)[:280]
+        parts.append("MSO 5d: " + "  ".join(mso))
+    parts.append("\nSource: IRC 280E · NY DTF")
+    return _finalize_caption(parts, "cannabis")
 
 
 def build_caption_insight():

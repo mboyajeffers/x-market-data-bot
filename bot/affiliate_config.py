@@ -180,29 +180,22 @@ THREAD_REPLIES = {
     # so "$PENN +X%" is always current, never stale.
     "worldcup": "__DYNAMIC__",
     "betting": (
-        "I track the full sportsbook sector daily.\n\n"
-        "Monthly operator intelligence — sector data, state handle trends, "
-        "regulatory pipeline, stock performance vs. SPY.\n"
-        + (f"Reports → {CONTRA_BETTING_URL}\n\n" if _contra_betting_live
-           else f"Sector reports → {BIO_LINK}\n\n")
-        + "I apply the same data stack to equity swing trading. "
-        "3 picks, 6:15am daily, full reasoning chain.\n"
-        f"Morning Signals {SIGNAL_PRICE} → {GUMROAD_SIGNAL_URL}\n\n"
+        "I track the full sportsbook sector daily — handle trends, "
+        "regulatory pipeline, stock performance vs. SPY.\n\n"
+        + (f"Monthly intel → {CONTRA_BETTING_URL}\n\n" if _contra_betting_live
+           else f"Monthly intel → {BIO_LINK}\n\n")
         + (f"{_sportsbook_promo_line()}\n\n" if _sportsbook_live
            else f"Best promos → {BIO_LINK}\n\n")
         + "#ad"
     ),
     "cannabis": (
-        "NYC dispensaries are getting hit twice.\n\n"
-        "280E disallows your normal deductions at the federal level.\n"
-        "NY's potency-tier excise is calculated wrong by most POS systems.\n\n"
-        "I track both monthly — dollar impact by revenue tier, excise "
-        "reconciliation, OCM audit flags.\n\n"
-        "Rate card to see the math: $29\n"
-        "Full 280E report: $399\n"
-        "Monthly if you want it ongoing: $697\n\n"
+        "NYC dispensaries get hit twice: 280E kills normal federal "
+        "deductions, and NY's potency-tier excise is calculated wrong "
+        "by most POS systems.\n\n"
+        "I track both monthly.\n\n"
+        "$29 rate card / $399 full report / $697 monthly\n\n"
         + (f"{CONTRA_CANNABIS_URL}" if _contra_cannabis_live
-           else f"Rate card (instant download) → {GUMROAD_CANNABIS_URL}" if _gumroad_cannabis_live
+           else f"Rate card → {GUMROAD_CANNABIS_URL}" if _gumroad_cannabis_live
            else f"Full product line → {BIO_LINK}")
     ),
     "media": (

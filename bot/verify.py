@@ -41,6 +41,22 @@ _RANK = {PASS: 0, WARN: 1, FAIL: 2}
 
 CASHTAG_RE     = re.compile(r"\$[A-Z]{1,6}\b")
 PLACEHOLDER_RE = re.compile(r"\[[A-Z0-9_]+\]")
+URL_RE         = re.compile(r"https?://\S+")
+TCO_LENGTH     = 23  # X shortens every URL to this fixed length toward the 280 limit
+
+
+def tweet_weighted_length(text):
+    """X's real post-length rule: every URL counts as TCO_LENGTH characters
+    toward the 280 limit regardless of its actual length, not raw len(text).
+    A raw-length check is systematically stricter than what X enforces and
+    can reject copy (or force unnecessary trimming) that would actually post
+    fine — found 2026-08-24 when every long-URL thread reply in the system
+    measured 100-220 "chars" over 280 by raw length but was much closer to
+    (sometimes under) the real limit once URLs are counted correctly."""
+    weighted = len(text)
+    for url in URL_RE.findall(text):
+        weighted += TCO_LENGTH - len(url)
+    return weighted
 
 # Known no-data fallback signatures — when a caption builder's live fetch fails
 # it emits one of these instead of real numbers. Posting one is a silent lie.
@@ -62,8 +78,8 @@ AI_FILLER_PHRASES = [
 def verify_caption(vertical, caption, post_type="card"):
     checks = []
 
-    n = len(caption)
-    checks.append(("char_count", FAIL if n > 280 else PASS, f"{n}/280 chars"))
+    n = tweet_weighted_length(caption)
+    checks.append(("char_count", FAIL if n > 280 else PASS, f"{n}/280 weighted chars"))
 
     cashtags = CASHTAG_RE.findall(caption)
     if len(cashtags) > 1:
