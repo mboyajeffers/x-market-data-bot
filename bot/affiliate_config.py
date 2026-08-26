@@ -20,7 +20,8 @@ Priority affiliate order:
 Brokerage referral programs (flat bounty per funded account):
   1. Webull    webull.com/refer                        (days)
   2. Moomoo    moomoo.com/promotions/refer              (days)
-  3. Robinhood robinhood.com/referral                   (days)
+  3. Robinhood affiliates.robinhood.com                 (days)
+     — NOT robinhood.com/referral (weak ~$5-stock consumer program, wrong one)
 """
 
 # ── BIO LINK ───────────────────────────────────────────────────────────────────
