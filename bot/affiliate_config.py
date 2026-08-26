@@ -27,6 +27,18 @@ Brokerage referral programs (flat bounty per funded account):
 # Update after Beacons page is live at beacons.ai
 BIO_LINK = "beacons.ai/mboyajeffers"
 
+# ── AFFILIATE HUB SITE ─────────────────────────────────────────────────────────
+# VM-hosted, dedicated to the sportsbook/crypto/brokerage affiliate angle. Added
+# 2026-08-26 because X's Paid Partnerships Policy (gambling banned Feb 2026;
+# "financial products, services, or opportunities — including loans, investment
+# services, and Crypto" banned Mar 2026) prohibits a sponsor-tagged affiliate
+# link in an X post or reply for betting/crypto/brokerage/finance, regardless of
+# whether X's own sponsorship-labeling tool is used. Those sponsor links now
+# live only on this site; X posts for those verticals point here by topic only
+# — no sponsor name, no #ad, since no compensation is disclosed on X itself.
+# Paste the real VM URL once Phase 3 (deploy) is done.
+AFFILIATE_SITE_URL = "[AFFILIATE_SITE_URL]"
+
 # ── AFFILIATE URLS (paste real links after approval) ──────────────────────────
 BETWAY_AFFILIATE_URL      = "[BETWAY_AFFILIATE_URL]"
 BETMGM_AFFILIATE_URL      = "[BETMGM_AFFILIATE_URL]"
@@ -43,6 +55,12 @@ ROBINHOOD_REFERRAL_URL  = "[ROBINHOOD_REFERRAL_URL]"
 # (up to 50%, no time cap per referral); Coinbase caps its 50% commission to
 # the first 3 months per referred user only. kraken.com/affiliate/apply
 KRAKEN_AFFILIATE_URL    = "[KRAKEN_AFFILIATE_URL]"
+
+# ── TRADING TOOLS REFERRAL (X-compliant — charting/analysis SaaS, not itself a
+# broker/lender/exchange, so it sits outside the Mar 2026 "investment services"
+# ban) ──────────────────────────────────────────────────────────────────────
+# 30% recurring commission, 90-day cookie. tradingview.com/partner-rules
+TRADINGVIEW_AFFILIATE_URL = "[TRADINGVIEW_AFFILIATE_URL]"
 
 # ── CONTRA + LINKEDIN URLS (paste after listings go live) ─────────────────────
 CONTRA_CANNABIS_URL    = "[CONTRA_CANNABIS_LISTING_URL]"   # paste after listing goes live
@@ -69,6 +87,7 @@ _betmgm_live         = not BETMGM_AFFILIATE_URL.startswith("[")
 _hardrockbet_live    = not HARDROCKBET_AFFILIATE_URL.startswith("[")
 _caesars_live        = not CAESARS_AFFILIATE_URL.startswith("[")
 _kraken_live         = not KRAKEN_AFFILIATE_URL.startswith("[")
+_tradingview_live    = not TRADINGVIEW_AFFILIATE_URL.startswith("[")
 _gumroad_wc_live     = not GUMROAD_WC_REPORT_URL.startswith("[")
 _contra_betting_live = not CONTRA_BETTING_URL.startswith("[")
 _webull_live         = not WEBULL_REFERRAL_URL.startswith("[")
@@ -134,22 +153,33 @@ _contra_cannabis_live = not CONTRA_CANNABIS_URL.startswith("[")
 _gumroad_cannabis_live = not GUMROAD_CANNABIS_URL.startswith("[")
 
 VERTICAL_CTA = {
-    "betting":    f"Best World Cup sportsbook promos → {BIO_LINK}",
-    "crypto":     f"White glove on-chain crypto intelligence → {BIO_LINK}",
+    # betting: no sponsor tag on X (gambling banned from paid partnerships Feb
+    # 2026) — sportsbook comparison + real affiliate links live on the site only.
+    "betting":    f"Full sportsbook sector breakdown → {AFFILIATE_SITE_URL}",
+    # crypto/brokerage/finance: no exchange/broker sponsor tag on X (banned Mar
+    # 2026) — but TradingView (charting tool, not a broker/exchange) stays
+    # compliant, so it's the live CTA here once approved; falls back to a
+    # neutral site pointer (no sponsor, no #ad) until then.
+    "crypto": (
+        f"Chart it free → {TRADINGVIEW_AFFILIATE_URL}"
+        if _tradingview_live
+        else f"Full on-chain + market data → {AFFILIATE_SITE_URL}"
+    ),
     "brokerage": (
-        f"Trade it — funded account bonus → {_broker_referral_url}"
-        if _broker_referral_live
-        else f"Best broker for these stocks → {BIO_LINK}"
+        f"Chart these stocks free → {TRADINGVIEW_AFFILIATE_URL}"
+        if _tradingview_live
+        else f"Full broker sector data → {AFFILIATE_SITE_URL}"
     ),
     "finance": (
-        f"Trade this data — funded account bonus → {_broker_referral_url}"
-        if _broker_referral_live
-        else f"Full sector data + market tools → {BIO_LINK}"
+        f"Chart this data free → {TRADINGVIEW_AFFILIATE_URL}"
+        if _tradingview_live
+        else f"Full sector data + market tools → {AFFILIATE_SITE_URL}"
     ),
     "solar":      f"Live solar sector data → {BIO_LINK}",
     "ecommerce":  f"Live retail sector data → {BIO_LINK}",
     "gaming":     f"Gaming sector data this week → {BIO_LINK}",
-    "media":      f"Broadcast sector data + World Cup → {BIO_LINK}",
+    # media: no sponsor tag on X — same reasoning as betting.
+    "media":      f"Full broadcast + sector data → {AFFILIATE_SITE_URL}",
     "oilgas":     f"Custom O&G intelligence report $499 → {CONTRA_OAG_CUSTOM_URL}",
     "worldcup": (
         f"Full WC Sportsbook Report {WC_REPORT_PRICE} → {GUMROAD_WC_REPORT_URL}  Best promos → {BIO_LINK}"
@@ -179,14 +209,14 @@ THREAD_REPLIES = {
     # worldcup: dynamic — post_thread_reply.py fetches live stock returns at post time
     # so "$PENN +X%" is always current, never stale.
     "worldcup": "__DYNAMIC__",
+    # betting: no sponsor tag on X (gambling banned from paid partnerships) —
+    # sportsbook comparison + real affiliate links live on the site only.
     "betting": (
         "I track the full sportsbook sector daily — handle trends, "
         "regulatory pipeline, stock performance vs. SPY.\n\n"
         + (f"Monthly intel → {CONTRA_BETTING_URL}\n\n" if _contra_betting_live
            else f"Monthly intel → {BIO_LINK}\n\n")
-        + (f"{_sportsbook_promo_line()}\n\n" if _sportsbook_live
-           else f"Best promos → {BIO_LINK}\n\n")
-        + "#ad"
+        + f"Full sportsbook comparison → {AFFILIATE_SITE_URL}"
     ),
     "cannabis": (
         "NYC dispensaries get hit twice: 280E kills normal federal "
@@ -198,27 +228,23 @@ THREAD_REPLIES = {
            else f"Rate card → {GUMROAD_CANNABIS_URL}" if _gumroad_cannabis_live
            else f"Full product line → {BIO_LINK}")
     ),
+    # media: no sponsor tag on X — same reasoning as betting.
     "media": (
         "FOX paid $485M for World Cup broadcast rights ($FOX).\n"
         "$CMCSA holds Spanish rights via Telemundo.\n\n"
-        "Sportsbook stocks are the direct play → World Cup betting data:\n"
-        + (f"{_sportsbook_promo_line()}\n\n" if _sportsbook_live
-           else f"Full analysis → {BIO_LINK}\n\n")
-        + "#ad"
+        "Sportsbook and broadcast sector data, full breakdown:\n"
+        f"{AFFILIATE_SITE_URL}"
     ),
+    # finance/brokerage: no exchange/broker sponsor tag on X — the TradingView
+    # CTA already runs in the main caption, so the reply stays neutral rather
+    # than repeating a sponsor mention twice in one thread.
     "finance": (
         "I track 22 finance KPIs daily across 11 sectors.\n\n"
-        "World Cup impact on sportsbook sector → live data at bio link.\n"
-        + (f"{_sportsbook_promo_line(prefix='Best sportsbook promos')}\n\n" if _sportsbook_live
-           else f"Sector data + reports → {BIO_LINK}\n\n")
-        + "#ad"
+        f"Full sector data + sportsbook/crypto/broker breakdown → {AFFILIATE_SITE_URL}"
     ),
     "brokerage": (
         "I track broker sector data weekly ($GS $MS $SCHW).\n\n"
-        "The World Cup sportsbook stock play ($DKNG $FLUT) is real:\n"
-        + (f"{_sportsbook_promo_line(prefix='Best sportsbook promos')}\n\n" if _sportsbook_live
-           else f"Full broker + sportsbook data → {BIO_LINK}\n\n")
-        + "#ad"
+        f"Full broker + sportsbook sector breakdown → {AFFILIATE_SITE_URL}"
     ),
     # crypto thread reply is built live at post time — fetches MVRV, F&G, Aave TVL from APIs
     "crypto": "__DYNAMIC__",
@@ -238,11 +264,16 @@ THREAD_REPLIES = {
     "signal":     None,  # outcome card stands alone — no thread reply needed
 }
 
-# Verticals with affiliate content — #ad is required by FTC on every post
-# cannabis is NOT here — no affiliate link in caption, no #ad needed
-# crypto added 2026-08-23 pre-emptively: not yet wired to a referral CTA, but
-# reserved so a future crypto-vertical broker/exchange referral link can't ship
-# without disclosure by oversight — see wild-bubbling-fountain.md gap #4.
+# Verticals with affiliate content — #ad is required by FTC on every post.
+# cannabis is NOT here — no affiliate link in caption, no #ad needed.
+#
+# Rewritten 2026-08-26: betting/media/worldcup dropped — X's Paid Partnerships
+# Policy (gambling banned Feb 2026) means these verticals can never carry a
+# sponsor tag on X again, by design (see AFFILIATE_SITE_URL note above), so
+# there's nothing left to disclose. finance/brokerage/crypto stay listed
+# pre-emptively (same reasoning as the original 2026-08-23 crypto entry this
+# replaces) so the TradingView CTA can't ship without #ad by oversight once
+# TRADINGVIEW_AFFILIATE_URL goes live.
 REQUIRES_DISCLOSURE = {
-    "worldcup", "betting", "media", "finance", "brokerage", "crypto"
+    "finance", "brokerage", "crypto"
 }

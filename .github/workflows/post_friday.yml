@@ -1,8 +1,10 @@
 name: Post Friday — Rotating Vertical
 
 on:
-  schedule:
-    - cron: '0 16 * * 5'  # 12:00PM ET (UTC-4 EDT)
+  # Scheduled auto-post disabled 2026-08-26 — bypassed the xbot approval
+  # gate (2026-06-27). Re-enable only once fully routed through xbot.
+  # schedule:
+  #   - cron: '0 16 * * 5'  # 12:00PM ET (UTC-4 EDT)
   workflow_dispatch:
 
 jobs:

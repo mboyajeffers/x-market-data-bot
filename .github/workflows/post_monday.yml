@@ -1,8 +1,12 @@
 name: Post Monday — Finance
 
 on:
-  schedule:
-    - cron: '30 12 * * 1'  # 8:30AM ET (UTC-4 EDT)
+  # Scheduled auto-post disabled 2026-08-26 — this bypassed the human
+  # approval gate (xbot CLI, added 2026-06-27) that every other posting path
+  # is supposed to go through. Re-enable only once posting is fully routed
+  # through xbot, or intentionally re-scoped. Manual runs still work below.
+  # schedule:
+  #   - cron: '30 12 * * 1'  # 8:30AM ET (UTC-4 EDT)
   workflow_dispatch:         # manual trigger
 
 jobs:

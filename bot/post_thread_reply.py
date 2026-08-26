@@ -37,8 +37,24 @@ NOW      = datetime.now().strftime("%Y-%m-%d %H:%M")
 
 sys.path.insert(0, str(BOT_DIR))
 from affiliate_config import (  # noqa: E402
-    THREAD_REPLIES, BIO_LINK, KRAKEN_AFFILIATE_URL, _kraken_live, REQUIRES_DISCLOSURE
+    THREAD_REPLIES, BIO_LINK, AFFILIATE_SITE_URL,
+    TRADINGVIEW_AFFILIATE_URL, KRAKEN_AFFILIATE_URL,
+    BETWAY_AFFILIATE_URL, BETMGM_AFFILIATE_URL, HARDROCKBET_AFFILIATE_URL, CAESARS_AFFILIATE_URL,
+    WEBULL_REFERRAL_URL, MOOMOO_REFERRAL_URL, ROBINHOOD_REFERRAL_URL,
 )
+
+# Sponsor URLs that can ever appear inside a thread reply. Used below to check
+# for a real disclosure requirement based on what's actually IN the text,
+# rather than blanket vertical membership in REQUIRES_DISCLOSURE — that set is
+# about the main caption's CTA machinery (see affiliate_config.py) and no
+# longer implies the *thread reply* for that same vertical carries a sponsor
+# (finance/brokerage/crypto's replies are deliberately neutral now — the
+# sponsor mention, if any, lives once in the main caption, not repeated here).
+_ALL_SPONSOR_URLS = [
+    TRADINGVIEW_AFFILIATE_URL, KRAKEN_AFFILIATE_URL,
+    BETWAY_AFFILIATE_URL, BETMGM_AFFILIATE_URL, HARDROCKBET_AFFILIATE_URL, CAESARS_AFFILIATE_URL,
+    WEBULL_REFERRAL_URL, MOOMOO_REFERRAL_URL, ROBINHOOD_REFERRAL_URL,
+]
 from verify import tweet_weighted_length  # noqa: E402
 
 
@@ -58,7 +74,7 @@ def build_worldcup_thread_reply() -> str:
     import yfinance as yf
     from affiliate_config import (
         BIO_LINK, WC_REPORT_PRICE, GUMROAD_WC_REPORT_URL,
-        _gumroad_wc_live, _sportsbook_promo_line, _sportsbook_live,
+        AFFILIATE_SITE_URL, _gumroad_wc_live,
     )
 
     penn_ret = None
@@ -73,14 +89,17 @@ def build_worldcup_thread_reply() -> str:
 
     penn_str = f"$PENN {penn_ret:+.1f}% since kickoff" if penn_ret is not None else "$PENN through the tournament"
 
+    # No sportsbook sponsor tag on X (gambling banned from paid partnerships
+    # Feb 2026) — sportsbook comparison + real affiliate links live on the
+    # site only. GUMROAD_WC_REPORT_URL is a first-party product, not a
+    # third-party affiliate, so no #ad is needed for that line alone.
     reply = f"I track sportsbook stocks daily. {penn_str}.\n\n"
     if _gumroad_wc_live:
         reply += f"Full report {WC_REPORT_PRICE} → {GUMROAD_WC_REPORT_URL}\n\n"
     else:
         reply += f"Full report → {BIO_LINK}\n\n"
 
-    reply += f"{_sportsbook_promo_line()}\n\n" if _sportsbook_live else f"Best promos → {BIO_LINK}\n\n"
-    reply += "#ad"
+    reply += f"Full sportsbook comparison → {AFFILIATE_SITE_URL}"
     return reply
 
 
@@ -145,15 +164,16 @@ def build_crypto_thread_reply() -> str:
     if not lines:
         lines.append("Live on-chain data — full report below.")
 
+    # No crypto-exchange sponsor tag on X (banned from paid partnerships Mar
+    # 2026) — Kraken's affiliate link lives on the site only now. The white
+    # glove report below is a first-party product, not a third-party
+    # affiliate, so no #ad is needed for this reply.
     reply = "\n".join(lines)
     reply += (
         "\n\nWhite glove: full on-chain report, signal read, macro overlay, DeFi risk.\n"
         "$99 report / $299 + signal / $599 + monthly call\n"
         f"{BIO_LINK}"
     )
-    if _kraken_live:
-        reply += f"\n\nWhere I trade it: Kraken → {KRAKEN_AFFILIATE_URL}"
-    reply += "\n#ad"
     return reply
 
 
@@ -305,7 +325,10 @@ def main():
     weighted = tweet_weighted_length(reply_text)
     if weighted > 280:
         problems.append(f"{weighted}/280 weighted chars")
-    if vertical in REQUIRES_DISCLOSURE and "#ad" not in reply_text.lower():
+    _live_sponsor_present = any(
+        url in reply_text for url in _ALL_SPONSOR_URLS if not url.startswith("[")
+    )
+    if _live_sponsor_present and "#ad" not in reply_text.lower():
         problems.append("#ad MISSING (FTC required)")
     if problems:
         msg = f"Thread reply [{vertical}] BLOCKED — {'; '.join(problems)}."
