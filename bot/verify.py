@@ -25,6 +25,7 @@ from pathlib import Path
 
 BOT_DIR     = Path(__file__).parent.resolve()
 SCRIPTS_DIR = BOT_DIR.parent / "scripts"
+REFERENCE_DIR = BOT_DIR / "card_references"  # golden layout crops, one per vertical, gitignored
 
 sys.path.insert(0, str(BOT_DIR))
 sys.path.insert(0, str(SCRIPTS_DIR))
@@ -107,7 +108,12 @@ def verify_caption(vertical, caption, post_type="card"):
     checks.append(("source_attribution", PASS if has_source else WARN,
                    "present" if has_source else "no source / disclaimer line"))
 
-    has_cta = (BIO_LINK in caption) or ("→" in caption) or ("contra.com" in caption)
+    # 2026-08-26: CTAs no longer carry a URL/arrow in the main caption by
+    # design (cost + algorithm reasons — see affiliate_config.py's
+    # VERTICAL_CTA) — "link in reply" is the new, correct pattern, not a
+    # missing CTA.
+    has_cta = (BIO_LINK in caption) or ("→" in caption) or ("contra.com" in caption) \
+        or ("link in reply" in caption.lower())
     checks.append(("cta_present", PASS if has_cta else WARN,
                    "present" if has_cta else "no CTA / bio link"))
 
@@ -186,7 +192,66 @@ def verify_card(vertical, card_path):
         checks.append(("brand_color", PASS if present else WARN,
                        f"accent {accent} " + ("present" if present else "not detected")))
 
+    checks.append(_layout_regression_check(vertical, img))
+
     return checks
+
+
+# Top-band crop where the account handle / panel title live — the exact region
+# involved in the 2026-06-27 incident (handle overlapping panel titles across
+# all 11 generators after a font-size bump). Filesize/dimension/blank checks
+# above don't catch this class of bug: the image is valid, non-blank, and
+# correctly sized — just visually wrong. The layout (title/handle position) is
+# templated and identical run-to-run for a given vertical; only the data
+# numbers below it change day to day. So a pixel-diff of just this band
+# against a known-good reference catches a layout regression without being
+# thrown off by normal daily data changes.
+_LAYOUT_BAND_FRACTION = 0.18   # top 18% of the card — covers title/handle row
+_LAYOUT_DIFF_THRESHOLD = 12.0  # mean per-pixel channel difference (0-255 scale)
+
+
+def _layout_regression_check(vertical, img):
+    REFERENCE_DIR.mkdir(exist_ok=True)
+    ref_path = REFERENCE_DIR / f"{vertical}.png"
+
+    w, h = img.size
+    band_h = max(1, int(h * _LAYOUT_BAND_FRACTION))
+    band = img.crop((0, 0, w, band_h))
+
+    if not ref_path.exists():
+        # Bootstrap: no golden reference yet for this vertical — save this
+        # render as the baseline (assumed correct — run this once against a
+        # manually-verified-good card before trusting it going forward) and
+        # pass without comparing.
+        band.save(ref_path)
+        return ("layout_regression", PASS, "no reference yet — this render saved as baseline")
+
+    try:
+        from PIL import Image
+        ref = Image.open(ref_path).convert("RGB")
+    except Exception as e:
+        return ("layout_regression", WARN, f"reference unreadable: {e}")
+
+    if ref.size != band.size:
+        # Card dimensions/template changed intentionally — re-baseline rather
+        # than compare mismatched crops.
+        band.save(ref_path)
+        return ("layout_regression", PASS, "reference size mismatch — re-baselined")
+
+    ref_px = list(ref.getdata())
+    band_px = list(band.getdata())
+    n = len(ref_px)
+    total_diff = sum(
+        abs(r1 - r2) + abs(g1 - g2) + abs(b1 - b2)
+        for (r1, g1, b1), (r2, g2, b2) in zip(ref_px, band_px)
+    )
+    mean_diff = total_diff / (n * 3)
+
+    if mean_diff > _LAYOUT_DIFF_THRESHOLD:
+        return ("layout_regression", FAIL,
+                f"title/handle band differs from known-good reference by "
+                f"{mean_diff:.1f} (threshold {_LAYOUT_DIFF_THRESHOLD}) — possible layout bug")
+    return ("layout_regression", PASS, f"matches reference ({mean_diff:.1f} diff)")
 
 
 # ─── DATA AUTHENTICITY ────────────────────────────────────────────────────────

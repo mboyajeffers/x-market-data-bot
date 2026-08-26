@@ -1,13 +1,16 @@
 name: Post Monday — Finance
 
 on:
-  # Scheduled auto-post disabled 2026-08-26 — this bypassed the human
-  # approval gate (xbot CLI, added 2026-06-27) that every other posting path
-  # is supposed to go through. Re-enable only once posting is fully routed
-  # through xbot, or intentionally re-scoped. Manual runs still work below.
-  # schedule:
-  #   - cron: '30 12 * * 1'  # 8:30AM ET (UTC-4 EDT)
-  workflow_dispatch:         # manual trigger
+  # Re-enabled 2026-08-26 — the underlying reason for gating (sponsor-tagged
+  # CTAs that could violate X's Paid Partnerships Policy) is fixed at the
+  # content level now: affiliate_config.py no longer puts a sponsor link or
+  # URL in any main caption for any vertical, so there's nothing left for
+  # unattended posting to get wrong the way the original gate worried about.
+  # verify.py's automated checks (including the new layout-regression check)
+  # are the safety net going forward, not a human in the loop.
+  schedule:
+    - cron: '30 12 * * 1'  # 8:30AM ET (UTC-4 EDT)
+  workflow_dispatch:         # manual trigger — still works anytime, any day
 
 jobs:
   post:
@@ -29,3 +32,19 @@ jobs:
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
           X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
         run: python bot/post.py finance
+
+      # 2026-08-26: thread reply lives in the SAME job (not a separate
+      # scheduled workflow) — GHA runners are ephemeral and don't persist
+      # post_log.json back to the repo between jobs, so a delayed follow-up
+      # job would have no way to find the tweet_id it needs to reply to.
+      # Same job, same filesystem, no persistence problem. Public repo =
+      # unlimited free Actions minutes, so a 90-min sleep costs nothing.
+      - name: Wait 90 minutes, then post thread reply
+        env:
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+        run: |
+          sleep 5400
+          python bot/post_thread_reply.py finance

@@ -15,6 +15,7 @@ avatar.jpg
 bot/error.log
 bot/post_log.json
 bot/staging.json
+bot/card_references/
 
 # ===========================================
 # SECURITY - Secrets and Credentials

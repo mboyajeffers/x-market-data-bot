@@ -38,7 +38,7 @@ NOW      = datetime.now().strftime("%Y-%m-%d %H:%M")
 sys.path.insert(0, str(BOT_DIR))
 from affiliate_config import (  # noqa: E402
     THREAD_REPLIES, BIO_LINK, AFFILIATE_SITE_URL,
-    TRADINGVIEW_AFFILIATE_URL, KRAKEN_AFFILIATE_URL,
+    TRADINGVIEW_AFFILIATE_URL, _tradingview_live, KRAKEN_AFFILIATE_URL,
     BETWAY_AFFILIATE_URL, BETMGM_AFFILIATE_URL, HARDROCKBET_AFFILIATE_URL, CAESARS_AFFILIATE_URL,
     WEBULL_REFERRAL_URL, MOOMOO_REFERRAL_URL, ROBINHOOD_REFERRAL_URL,
 )
@@ -167,13 +167,22 @@ def build_crypto_thread_reply() -> str:
     # No crypto-exchange sponsor tag on X (banned from paid partnerships Mar
     # 2026) — Kraken's affiliate link lives on the site only now. The white
     # glove report below is a first-party product, not a third-party
-    # affiliate, so no #ad is needed for this reply.
+    # affiliate, so no #ad is needed for that line. TradingView (if live) is
+    # the one compliant sponsor link that can appear here directly.
+    #
+    # 2026-08-26: this reply now carries the ONLY link for the crypto vertical
+    # — the main caption (post.py) dropped its URL entirely (cost + algorithm
+    # reasons, see affiliate_config.py's VERTICAL_CTA), so whatever this
+    # vertical points to has to live here.
     reply = "\n".join(lines)
     reply += (
         "\n\nWhite glove: full on-chain report, signal read, macro overlay, DeFi risk.\n"
         "$99 report / $299 + signal / $599 + monthly call\n"
         f"{BIO_LINK}"
     )
+    if _tradingview_live:
+        reply += f"\n\nChart it free on TradingView → {TRADINGVIEW_AFFILIATE_URL}"
+    reply += f"\n\nFull crypto sector + exchange data → {AFFILIATE_SITE_URL}"
     return reply
 
 

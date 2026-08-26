@@ -152,50 +152,51 @@ VERTICAL_CASHTAGS = {
 _contra_cannabis_live = not CONTRA_CANNABIS_URL.startswith("[")
 _gumroad_cannabis_live = not GUMROAD_CANNABIS_URL.startswith("[")
 
+# 2026-08-26: every CTA below dropped its URL. X's API pricing (effective Apr
+# 2026) charges $0.20 per post containing a URL vs. $0.015 for plain text — a
+# 13x premium — and X's own ranking algorithm separately down-ranks posts with
+# external links in the body. Every real link now lives exclusively in the
+# vertical's THREAD_REPLIES entry below (posted 90 min later); the main
+# caption's CTA is a link-free teaser only. `signal` is the one deliberate
+# exception — it's mid Signal Service's 30-day live-validation gate and not
+# being promoted on X at all right now, so its CTA is left as previously
+# designed rather than reworked for a post that isn't going out.
 VERTICAL_CTA = {
-    # betting: no sponsor tag on X (gambling banned from paid partnerships Feb
-    # 2026) — sportsbook comparison + real affiliate links live on the site only.
-    "betting":    f"Full sportsbook sector breakdown → {AFFILIATE_SITE_URL}",
-    # crypto/brokerage/finance: no exchange/broker sponsor tag on X (banned Mar
-    # 2026) — but TradingView (charting tool, not a broker/exchange) stays
-    # compliant, so it's the live CTA here once approved; falls back to a
-    # neutral site pointer (no sponsor, no #ad) until then.
+    "betting":    "Full sportsbook sector breakdown — link in reply",
     "crypto": (
-        f"Chart it free → {TRADINGVIEW_AFFILIATE_URL}"
+        "Chart it free — link in reply"
         if _tradingview_live
-        else f"Full on-chain + market data → {AFFILIATE_SITE_URL}"
+        else "Full on-chain + market data — link in reply"
     ),
     "brokerage": (
-        f"Chart these stocks free → {TRADINGVIEW_AFFILIATE_URL}"
+        "Chart these stocks free — link in reply"
         if _tradingview_live
-        else f"Full broker sector data → {AFFILIATE_SITE_URL}"
+        else "Full broker sector data — link in reply"
     ),
     "finance": (
-        f"Chart this data free → {TRADINGVIEW_AFFILIATE_URL}"
+        "Chart this data free — link in reply"
         if _tradingview_live
-        else f"Full sector data + market tools → {AFFILIATE_SITE_URL}"
+        else "Full sector data + market tools — link in reply"
     ),
-    "solar":      f"Live solar sector data → {BIO_LINK}",
-    "ecommerce":  f"Live retail sector data → {BIO_LINK}",
-    "gaming":     f"Gaming sector data this week → {BIO_LINK}",
-    # media: no sponsor tag on X — same reasoning as betting.
-    "media":      f"Full broadcast + sector data → {AFFILIATE_SITE_URL}",
-    "oilgas":     f"Custom O&G intelligence report $499 → {CONTRA_OAG_CUSTOM_URL}",
+    "solar":      "Live solar sector data — link in reply",
+    "ecommerce":  "Live retail sector data — link in reply",
+    "gaming":     "Gaming sector data this week — link in reply",
+    "media":      "Full broadcast + sector data — link in reply",
+    "oilgas":     "Custom O&G intelligence report $499 — link in reply",
     "worldcup": (
-        f"Full WC Sportsbook Report {WC_REPORT_PRICE} → {GUMROAD_WC_REPORT_URL}  Best promos → {BIO_LINK}"
+        f"Full WC Sportsbook Report {WC_REPORT_PRICE} — link in reply"
         if _gumroad_wc_live
-        else f"World Cup sportsbook data + analysis → {BIO_LINK}"
+        else "World Cup sportsbook data + analysis — link in reply"
     ),
-    "compliance": f"SEC enforcement data → {BIO_LINK}",
-    "weather":    f"Full US weather data → {BIO_LINK}",
-    # Cannabis CTA: live Contra URL → use it; else fall back to bio link
+    "compliance": "SEC enforcement data — link in reply",
+    "weather":    "Full US weather data — link in reply",
     "cannabis": (
-        f"NYC dispensary analytics → {CONTRA_CANNABIS_URL}"
+        "NYC dispensary analytics — link in reply"
         if _contra_cannabis_live
-        else f"NYC dispensary 280E + compliance analytics → {BIO_LINK}"
+        else "NYC dispensary 280E + compliance analytics — link in reply"
     ),
     "insight":    "",       # no CTA — post stands alone as organic content
-    "signal":     f"Morning Signals {SIGNAL_PRICE} → {GUMROAD_SIGNAL_URL}",
+    "signal":     f"Morning Signals {SIGNAL_PRICE} → {GUMROAD_SIGNAL_URL}",  # unchanged — not promoted on X yet, see note above
 }
 
 # ── THREAD REPLIES ─────────────────────────────────────────────────────────────
@@ -235,22 +236,39 @@ THREAD_REPLIES = {
         "Sportsbook and broadcast sector data, full breakdown:\n"
         f"{AFFILIATE_SITE_URL}"
     ),
-    # finance/brokerage: no exchange/broker sponsor tag on X — the TradingView
-    # CTA already runs in the main caption, so the reply stays neutral rather
-    # than repeating a sponsor mention twice in one thread.
+    # finance/brokerage: no exchange/broker sponsor tag on X — but since the
+    # main caption no longer carries ANY link (2026-08-26, cost + algorithm),
+    # TradingView's link (when live) has to move here instead of being dropped.
     "finance": (
         "I track 22 finance KPIs daily across 11 sectors.\n\n"
-        f"Full sector data + sportsbook/crypto/broker breakdown → {AFFILIATE_SITE_URL}"
+        + (f"Chart it free on TradingView → {TRADINGVIEW_AFFILIATE_URL}\n\n"
+           if _tradingview_live else "")
+        + f"Full sector data + sportsbook/crypto/broker breakdown → {AFFILIATE_SITE_URL}"
     ),
     "brokerage": (
         "I track broker sector data weekly ($GS $MS $SCHW).\n\n"
-        f"Full broker + sportsbook sector breakdown → {AFFILIATE_SITE_URL}"
+        + (f"Chart these stocks free on TradingView → {TRADINGVIEW_AFFILIATE_URL}\n\n"
+           if _tradingview_live else "")
+        + f"Full broker + sportsbook sector breakdown → {AFFILIATE_SITE_URL}"
     ),
     # crypto thread reply is built live at post time — fetches MVRV, F&G, Aave TVL from APIs
     "crypto": "__DYNAMIC__",
-    "solar":      None,  # No audience-matched affiliate yet
-    "ecommerce":  None,  # Audience mismatch confirmed
-    "gaming":     None,  # No strong affiliate angle
+    # 2026-08-26: solar/ecommerce/gaming/compliance/weather previously had no
+    # thread reply because their main caption carried the (only) link directly
+    # — now that the link has to live in a reply instead of the main body,
+    # these five need one too, or their promotion disappears entirely.
+    "solar": (
+        "I track solar sector data weekly ($FSLR $ENPH $SEDG).\n\n"
+        f"Full sector breakdown → {BIO_LINK}"
+    ),
+    "ecommerce": (
+        "I track retail/ecommerce sector data weekly ($AMZN $SHOP $WMT).\n\n"
+        f"Full sector breakdown → {BIO_LINK}"
+    ),
+    "gaming": (
+        "I track gaming sector data weekly ($TTWO $EA $RBLX).\n\n"
+        f"Full sector breakdown → {BIO_LINK}"
+    ),
     "oilgas": (
         "I track US crude and natural gas production from EIA monthly data "
         "— production trends, price volatility, and revenue at risk.\n\n"
@@ -258,10 +276,16 @@ THREAD_REPLIES = {
         f"One-time custom report (48hr) $499 → {CONTRA_OAG_CUSTOM_URL}\n\n"
         f"Monthly intelligence brief $299/mo → {CONTRA_ENERGY_OAG_URL}"
     ),
-    "compliance": None,
-    "weather":    None,
+    "compliance": (
+        "I track SEC enforcement actions and CFPB/HMDA compliance data weekly.\n\n"
+        f"Full dataset → {BIO_LINK}"
+    ),
+    "weather": (
+        "I track US weather patterns and severity data daily.\n\n"
+        f"Full dataset → {BIO_LINK}"
+    ),
     "insight":    None,  # text-only organic post — no thread reply
-    "signal":     None,  # outcome card stands alone — no thread reply needed
+    "signal":     None,  # outcome card stands alone — no thread reply needed; not promoted on X yet anyway
 }
 
 # Verticals with affiliate content — #ad is required by FTC on every post.
