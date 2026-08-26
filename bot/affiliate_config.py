@@ -36,8 +36,8 @@ BIO_LINK = "beacons.ai/mboyajeffers"
 # whether X's own sponsorship-labeling tool is used. Those sponsor links now
 # live only on this site; X posts for those verticals point here by topic only
 # — no sponsor name, no #ad, since no compensation is disclosed on X itself.
-# Paste the real VM URL once Phase 3 (deploy) is done.
-AFFILIATE_SITE_URL = "[AFFILIATE_SITE_URL]"
+# Live 2026-08-26 — VM-hosted, isolated from mboyajeffers.github.io.
+AFFILIATE_SITE_URL = "http://34.122.105.94:8090"
 
 # ── AFFILIATE URLS (paste real links after approval) ──────────────────────────
 BETWAY_AFFILIATE_URL      = "[BETWAY_AFFILIATE_URL]"
