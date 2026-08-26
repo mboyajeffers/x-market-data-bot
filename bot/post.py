@@ -11,7 +11,9 @@ Usage:
 
 Supported verticals:
     finance, crypto, oilgas, brokerage, compliance, betting, gaming,
-    ecommerce, media, solar, weather, worldcup
+    ecommerce, media, solar, weather, cannabis, signal, insight, nfl
+    (worldcup retired 2026-08-26 — the 2026 tournament ended 2026-07-19;
+    nfl is its direct successor, see build_caption_nfl())
 
 Required env vars (add to ~/.zshrc or ~/.x_bot_env):
     X_API_KEY
@@ -83,6 +85,7 @@ VERTICALS = {
     "cannabis":   "generate_cannabis_x_card.py",
     "insight":    None,   # text-only — no card generator
     "signal":     "generate_signal_x_card.py",
+    "nfl":        "generate_nfl_x_card.py",
 }
 
 CARD_NAMES = {
@@ -101,6 +104,7 @@ CARD_NAMES = {
     "cannabis":   f"cannabis_x_card_{TODAY}.png",
     "insight":    None,   # text-only — no card file
     "signal":     f"signal_x_card_{TODAY}.png",
+    "nfl":        f"nfl_x_card_{TODAY}.png",
 }
 
 # Verticals that post text only (no card, no media upload)
@@ -887,6 +891,83 @@ def build_caption_worldcup():
     return body + suffix
 
 
+def _fetch_nfl_scoreboard():
+    """Current week's NFL scoreboard. [] before/between weeks (e.g. now, ahead
+    of the 2026-09-09 season start) — caller shows a countdown instead. Mirrors
+    scripts/generate_nfl_x_card.py's fetcher (kept separate — same duplication
+    pattern as the World Cup vertical had between its caption and card
+    fetchers)."""
+    url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            data = json.loads(r.read())
+        games = []
+        for event in data.get("events", []):
+            comp = event.get("competitions", [{}])[0]
+            competitors = comp.get("competitors", [])
+            if len(competitors) < 2:
+                continue
+            home = next((c for c in competitors if c.get("homeAway") == "home"), competitors[0])
+            away = next((c for c in competitors if c.get("homeAway") == "away"), competitors[1])
+            games.append({
+                "home": home.get("team", {}).get("abbreviation", "?"),
+                "away": away.get("team", {}).get("abbreviation", "?"),
+                "state": event.get("status", {}).get("type", {}).get("state", "pre"),
+            })
+        return games
+    except Exception:
+        return []
+
+
+NFL_SEASON_START = datetime(2026, 9, 9)
+
+
+def build_caption_nfl():
+    """
+    Weekly NFL post — replaces the retired `worldcup` vertical (2026-08-26).
+    Unlike World Cup (daily, single tournament), NFL games cluster on
+    Sun/Mon/Thu, so this runs weekly. No sponsor link in the main caption —
+    same reasoning as betting/media (X's Feb 2026 gambling ban covers any
+    compensated sportsbook-adjacent post); the real sportsbook CTA lives in
+    the thread reply, pointing at the affiliate hub site.
+    """
+    games = _fetch_nfl_scoreboard()
+    dkng_price, dkng_ret = _yf_5d("DKNG")
+    flut_price, flut_ret = _yf_5d("FLUT")
+
+    parts = [f"NFL — {TODAY}\n"]
+
+    if games:
+        finished = [g for g in games if g["state"] == "post"]
+        upcoming = [g for g in games if g["state"] == "pre"]
+        if finished:
+            parts.append("FT: " + "  ·  ".join(
+                f"{g['away']}@{g['home']}" for g in finished[:4]))
+        if upcoming:
+            parts.append("This week: " + "  ·  ".join(
+                f"{g['away']}@{g['home']}" for g in upcoming[:4]))
+    else:
+        days_out = (NFL_SEASON_START - datetime.now()).days
+        if days_out > 0:
+            parts.append(f"Season kicks off in {days_out} days — Sept 9, 2026 (SEA @ NE)")
+        else:
+            parts.append("Season underway — full slate in card")
+
+    # No $ prefix here — $DKNG is already added as the vertical's cashtag
+    # suffix by _finalize_caption() below; a second cashtag in the body
+    # triggers X's 1-cashtag-per-tweet limit (403) — same fix as cannabis's
+    # $MJ handling above.
+    mk_parts = []
+    if dkng_ret is not None: mk_parts.append(f"DKNG {dkng_ret:+.1f}%")
+    if flut_ret is not None: mk_parts.append(f"FLUT {flut_ret:+.1f}%")
+    if mk_parts:
+        parts.append("\n" + " · ".join(mk_parts) + " (5d) · Not betting advice")
+
+    parts.append("\nSource: ESPN · Yahoo Finance")
+    return _finalize_caption(parts, "nfl")
+
+
 def build_caption_cannabis():
     _, mj    = _yf_5d("MJ")
     _, curlf = _yf_5d("CURLF")
@@ -967,6 +1048,7 @@ CAPTION_BUILDERS = {
     "cannabis":   build_caption_cannabis,
     "insight":    build_caption_insight,
     "signal":     build_caption_signal,
+    "nfl":        build_caption_nfl,
 }
 
 # ─── TWEEPY AUTH ─────────────────────────────────────────────────────────────

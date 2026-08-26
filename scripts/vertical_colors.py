@@ -44,6 +44,12 @@ VERTICAL = {
         "accent2": "#3b82f6",   # brand blue
         "grad":    ("#00d4aa", "#3b82f6"),  # site signature
     },
+    "nfl": {
+        # Direct successor to worldcup (2026-08-26) — same accent, brand continuity
+        "accent":  "#00d4aa",
+        "accent2": "#3b82f6",
+        "grad":    ("#00d4aa", "#3b82f6"),
+    },
     "betting": {
         "accent":  "#22c55e",   # CLAUDE.md betting #16a34a, brightened for dark bg
         "accent2": "#14b8a6",   # teal partner

@@ -146,6 +146,7 @@ VERTICAL_CASHTAGS = {
     "cannabis":   "$MJ",
     "insight":    "",       # organic text post — no cashtag
     "signal":     "",       # outcome card — no cashtag (not a sector post)
+    "nfl":        "$DKNG",  # worldcup's direct successor — same sportsbook-stock tie-in
 }
 
 # ── CTAs (replace hashtags in captions — drives bio clicks) ───────────────────
@@ -197,6 +198,9 @@ VERTICAL_CTA = {
     ),
     "insight":    "",       # no CTA — post stands alone as organic content
     "signal":     f"Morning Signals {SIGNAL_PRICE} → {GUMROAD_SIGNAL_URL}",  # unchanged — not promoted on X yet, see note above
+    # nfl: worldcup's direct successor (2026-08-26) — same no-sponsor-tag
+    # reasoning as betting (gambling banned from paid partnerships Feb 2026).
+    "nfl":        "Full sportsbook breakdown — link in reply",
 }
 
 # ── THREAD REPLIES ─────────────────────────────────────────────────────────────
@@ -286,6 +290,13 @@ THREAD_REPLIES = {
     ),
     "insight":    None,  # text-only organic post — no thread reply
     "signal":     None,  # outcome card stands alone — no thread reply needed; not promoted on X yet anyway
+    "nfl": (
+        "I track the full sportsbook sector weekly — handle trends, "
+        "regulatory pipeline, stock performance vs. SPY.\n\n"
+        + (f"Monthly intel → {CONTRA_BETTING_URL}\n\n" if _contra_betting_live
+           else f"Monthly intel → {BIO_LINK}\n\n")
+        + f"Full sportsbook comparison → {AFFILIATE_SITE_URL}"
+    ),
 }
 
 # Verticals with affiliate content — #ad is required by FTC on every post.
